@@ -16,14 +16,18 @@ type Category {
 }
 
 type Query {
-  getProducts: [Product]
-  getCategories: [Category]
+  getProducts(limit: Int, offset: Int, name: String, categoryId: ID): [Product]
+  getProductById(id: ID!): Product
+  getCategories(limit: Int, offset: Int, name: String): [Category]
 }
 
 type Mutation {
   addProduct(name: String!, price: Float!, description: String, categoryId: ID!): Product
-  addCategory(name: String!, description: String): Category
   updateProduct(id: ID!, name: String, price: Float, description: String): Product
   deleteProduct(id: ID!): Boolean
+
+  addCategory(name: String!, description: String): Category
+  updateCategory(id: ID!, name: String, description: String): Category
+  deleteCategory(id: ID!): Boolean
 }
 `)

@@ -4,6 +4,7 @@ import {
   updateProductInDB,
   deleteProductFromDB,
 } from '../config/database'
+import { logger } from '../utils/logger'
 
 export const ProductService = {
   getAll: async () => await getProductsFromDB(),
@@ -14,10 +15,10 @@ export const ProductService = {
     categoryId: number,
   ) => {
     try {
-      console.log('Adding product with categoryId:', categoryId)
+      logger.info('Adding product with categoryId:', categoryId)
       return await addProductToDB(name, price, description, categoryId)
     } catch (err) {
-      console.error('Error in ProductService.add:', err)
+      logger.error('Error in ProductService.add:', err)
       throw err
     }
   },

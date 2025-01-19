@@ -5,12 +5,13 @@ import { closeDatabaseConnection, connectToDatabase } from './config/database'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import { productResolver } from './graphql/resolvers/productResolver'
 import { categoryResolver } from './graphql/resolvers/categoryResolver'
+import { logger } from './utils/logger'
 
 export const startServer = async () => {
   const app = express()
 
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
+    logger.info(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
     next()
   })
   await connectToDatabase()
@@ -24,22 +25,30 @@ export const startServer = async () => {
     graphqlHTTP({
       schema: executableSchema,
       graphiql: true,
+      customFormatErrorFn: (error) => {
+        logger.error('[GraphQL Error]', error.message)
+        return {
+          message: error.message,
+          locations: error.locations,
+          path: error.path,
+        }
+      },
     }),
   )
 
   const PORT = process.env.PORT || 4000
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}/graphql`)
+    logger.info(`Server running on http://localhost:${PORT}/graphql`)
   })
 
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`)
+    logger.info(`${req.method} ${req.url}`)
     next()
   })
   // await startServer()
 
   process.on('SIGINT', async () => {
-    console.log('SIGINT received. Closing connection pool...')
+    logger.info('SIGINT received. Closing connection pool...')
     await closeDatabaseConnection()
     process.exit(0)
   })

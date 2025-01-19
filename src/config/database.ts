@@ -1,13 +1,14 @@
 // @ts-ignore
 import oracledb from 'oracledb'
 import dotenv from 'dotenv'
+import { logger } from '../utils/logger'
 
 dotenv.config()
 let connectionPool: oracledb.Pool | null = null
 
 export const connectToDatabase = async () => {
   try {
-    console.log('Environment Variables:', {
+    logger.info('Environment Variables:', {
       DB_USER: process.env.DB_USER,
       DB_PASSWORD: process.env.DB_PASSWORD,
       DB_CONNECT_STRING: process.env.DB_CONNECT_STRING,
@@ -15,22 +16,21 @@ export const connectToDatabase = async () => {
     if (!connectionPool) {
       connectionPool = await oracledb.createPool({
         user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD ,
-        connectString:
-          process.env.DB_CONNECT_STRING,
+        password: process.env.DB_PASSWORD,
+        connectString: process.env.DB_CONNECT_STRING,
       })
-      console.log('Connection pool created')
+      logger.info('Connection pool created')
     }
 
     const connection = await connectionPool.getConnection() // Obține conexiunea din pool
-    console.log('Connection established for SELECT test')
+    logger.info('Connection established for SELECT test')
 
     const result = await connection.execute(`SELECT 1 FROM DUAL`)
-    console.log('SELECT result:', result.rows)
+    logger.info('SELECT result:', result.rows)
     await connection.close() // Eliberează conexiunea înapoi în pool
-    console.log('Connected to Oracle Database')
+    logger.info('Connected to Oracle Database')
   } catch (err) {
-    console.error('Error connecting to Oracle Database:', err)
+    logger.error('Error connecting to Oracle Database:', err)
     process.exit(1)
   }
 }
@@ -51,7 +51,7 @@ export const addProductToDB = async (
   categoryId: number,
 ) => {
   try {
-    console.log('addProductToDB called with:', {
+    logger.info('addProductToDB called with:', {
       name,
       price,
       description,
@@ -70,11 +70,11 @@ export const addProductToDB = async (
       },
       { autoCommit: true },
     )
-    console.log('Insert result:', result)
+    logger.info('Insert result:', result)
     await connection.close()
     return { id: result.outBinds.id[0], name, price, description }
   } catch (err) {
-    console.error('Error in addProductToDB:', err)
+    logger.error('Error in addProductToDB:', err)
     throw err
   }
 }
@@ -109,13 +109,13 @@ export const deleteProductFromDB = async (id: number) => {
 }
 export const getProductsFromDB = async () => {
   try {
-    console.log('getProductsFromDB called')
+    logger.info('getProductsFromDB called')
     const connection = await getConnectionFromPool()
-    console.log('Connection established for getProductsFromDB')
+    logger.info('Connection established for getProductsFromDB')
     const result = await connection.execute(
       `SELECT ID, NAME, PRICE, DESCRIPTION FROM PRODUCTS`,
     )
-    console.log('Query result:', result)
+    logger.info('Query result:', result)
     await connection.close()
     return result.rows.map((row: any[]) => ({
       id: row[0],
@@ -124,7 +124,7 @@ export const getProductsFromDB = async () => {
       description: row[3],
     }))
   } catch (err) {
-    console.error('Error in getProductsFromDB:', err)
+    logger.error('Error in getProductsFromDB:', err)
     throw err
   }
 }
@@ -133,9 +133,9 @@ export const closeDatabaseConnection = async () => {
   if (connectionPool) {
     try {
       await connectionPool.close()
-      console.log('Connection pool closed')
+      logger.info('Connection pool closed')
     } catch (err) {
-      console.error('Error closing connection pool:', err)
+      logger.error('Error closing connection pool:', err)
     }
   }
 }

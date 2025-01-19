@@ -8,6 +8,8 @@ import {
 import { ProductService } from '../../services/productService'
 import { Product } from '../../models/product'
 import { Category } from '../../models/category'
+import { validateInput } from '../../utils/validateInput'
+import { logger } from '../../utils/logger'
 let products = [
   {
     id: '1',
@@ -19,53 +21,70 @@ let products = [
 
 export const productResolver = {
   Query: {
-    getProducts: async (): Promise<Product[]> => {
+    getProducts: async (
+      _: any,
+      { limit, offset, name, categoryId }: any,
+    ): Promise<Product[]> => {
+      const connection = await getConnectionFromPool()
       try {
-        const connection = await getConnectionFromPool()
-        console.log('[GraphQL Query] getProducts called')
+        let query = `SELECT ID, NAME, PRICE, DESCRIPTION, CATEGORY_ID FROM PRODUCTS WHERE 1=1`
+        const params: any = {}
 
-        // Obține produsele din baza de date
-        const productsResult = await connection.execute(
-          `SELECT ID, NAME, PRICE, DESCRIPTION, CATEGORY_ID FROM PRODUCTS`,
-        )
-        const products: Product[] = productsResult.rows.map((row: any[]) => ({
+        if (name) {
+          query += ` AND NAME LIKE :name`
+          params.name = `%${name}%`
+        }
+        if (categoryId) {
+          query += ` AND CATEGORY_ID = :categoryId`
+          params.categoryId = categoryId
+        }
+        if (limit) {
+          query += ` FETCH NEXT :limit ROWS ONLY`
+          params.limit = limit
+        }
+        if (offset) {
+          query += ` OFFSET :offset ROWS`
+          params.offset = offset
+        }
+
+        const result = await connection.execute(query, params)
+        return result.rows.map((row: any[]) => ({
           id: row[0],
           name: row[1],
           price: row[2],
           description: row[3],
           categoryId: row[4],
         }))
-
-        // Obține categoriile asociate
-        const categoryIds = products
-          .map((product) => product.categoryId)
-          .filter(Boolean) as number[]
-        const uniqueCategoryIds = [...new Set(categoryIds)]
-
-        let categories: Category[] = []
-        if (uniqueCategoryIds.length > 0) {
-          const categoriesResult = await connection.execute(
-            `SELECT ID, NAME FROM CATEGORIES WHERE ID IN (${uniqueCategoryIds.join(',')})`,
-          )
-          categories = categoriesResult.rows.map((row: any[]) => ({
-            id: row[0],
-            name: row[1],
-          }))
-        }
-
-        // Mapare: Adaugă categoriile asociate fiecărui produs
-        const productsWithCategories: Product[] = products.map((product) => ({
-          ...product,
-          category:
-            categories.find((category) => category.id === product.categoryId) ||
-            null,
-        }))
-
-        await connection.close()
-        return productsWithCategories
       } catch (err) {
-        console.error('Error in getProducts resolver:', err)
+        logger.error('Error in getProducts with filters:', err)
         throw err
+      } finally {
+        await connection.close()
+      }
+    },
+    getProductById: async (_: any, { id }: any): Promise<Product | null> => {
+      const connection = await getConnectionFromPool()
+      try {
+        const result = await connection.execute(
+          `SELECT ID, NAME, PRICE, DESCRIPTION, CATEGORY_ID FROM PRODUCTS WHERE ID = :id`,
+          { id },
+        )
+        if (result.rows.length === 0) {
+          return null
+        }
+        const row = result.rows[0]
+        return {
+          id: row[0],
+          name: row[1],
+          price: row[2],
+          description: row[3],
+          categoryId: row[4],
+        }
+      } catch (err) {
+        logger.error('Error in getProductById:', err)
+        throw err
+      } finally {
+        await connection.close()
       }
     },
   },
@@ -98,7 +117,7 @@ export const productResolver = {
           description,
           categoryId,
         )
-        console.log('[GraphQL Mutation] Product added:', newProduct)
+        logger.info('[GraphQL Mutation] Product added:', newProduct)
 
         // Adaugă categoria în obiectul returnat
         return {
@@ -106,17 +125,24 @@ export const productResolver = {
           category,
         }
       } catch (err) {
-        console.error('Error in addProduct resolver:', err)
+        logger.error('Error in addProduct resolver:', err)
         throw err
       }
     },
-    updateProduct: async (_: any, args: any) =>
-      await ProductService.update(
+    updateProduct: async (_: any, args: any) => {
+      validateInput(args, {
+        id: { required: true, type: 'number' },
+        name: { required: false, type: 'string' },
+        price: { required: false, type: 'number' },
+        description: { required: false, type: 'string' },
+      })
+      return await ProductService.update(
         args.id,
         args.name,
         args.price,
         args.description,
-      ),
+      )
+    },
     deleteProduct: async (_: any, args: any) =>
       await ProductService.delete(args.id),
     // updateProduct: async (_: any, args: any) => {

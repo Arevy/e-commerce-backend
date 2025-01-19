@@ -86,6 +86,9 @@ Create a `.env` file in the root of your project with the following content:
 DB_USER=your_oracle_db_username
 DB_PASSWORD=your_oracle_db_password
 DB_CONNECT_STRING=localhost:1521/ORCLCDB
+
+# JWT Secret
+JWT_SECRET=your_secret_key
 ```
 
 # JWT Secret

@@ -1,23 +1,8 @@
-import {
-  addProductToDB,
-  deleteProductFromDB,
-  getConnectionFromPool,
-  getProductsFromDB,
-  updateProductInDB,
-} from '../../config/database'
+import { getConnectionFromPool } from '../../config/database'
 import { ProductService } from '../../services/productService'
 import { Product } from '../../models/product'
-import { Category } from '../../models/category'
 import { validateInput } from '../../utils/validateInput'
 import { logger } from '../../utils/logger'
-let products = [
-  {
-    id: '1',
-    name: 'Laptop',
-    price: 999.99,
-    description: 'High-performance laptop',
-  },
-]
 
 export const productResolver = {
   Query: {
@@ -110,7 +95,6 @@ export const productResolver = {
           throw new Error(`Category with ID ${categoryId} does not exist`)
         }
 
-        // Adaugă produsul în baza de date
         const newProduct = await ProductService.add(
           name,
           price,
@@ -119,7 +103,6 @@ export const productResolver = {
         )
         logger.info('[GraphQL Mutation] Product added:', newProduct)
 
-        // Adaugă categoria în obiectul returnat
         return {
           ...newProduct,
           category,

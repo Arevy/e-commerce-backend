@@ -1,6 +1,30 @@
+# Logs
+log
+logs
+*.log
+npm-debug.log*
+*.rdb
+keysinfo
+
+# Dependency directory
+node_modules/
+package-lock.json
+
+# Optional npm cache directory
+.npm
+
+# Editor
+.idea
+.vscode
+
+# Build
+dist/
+
+# env
 .env
 .env.example
 .env.local
 .env.staging
-node_modules
-node_modules/*
+
+.DS_Store
+/log

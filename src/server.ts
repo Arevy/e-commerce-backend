@@ -6,6 +6,8 @@ import { makeExecutableSchema } from '@graphql-tools/schema'
 import { productResolver } from './graphql/resolvers/productResolver'
 import { categoryResolver } from './graphql/resolvers/categoryResolver'
 import { logger } from './utils/logger'
+import { orderResolver } from './graphql/resolvers/orderResolver'
+import { userResolver } from './graphql/resolvers/userResolver'
 
 export const startServer = async () => {
   const app = express()
@@ -17,7 +19,7 @@ export const startServer = async () => {
   await connectToDatabase()
   const executableSchema = makeExecutableSchema({
     typeDefs: schema,
-    resolvers: [productResolver, categoryResolver],
+    resolvers: [productResolver, categoryResolver, userResolver, orderResolver],
   })
 
   app.use(

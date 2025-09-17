@@ -11,15 +11,23 @@ Express, connects to Oracle Database for persistence, and optionally uses Redis
 - JWT-based authentication with sample test accounts for quick manual testing.
 
 ## Technology Stack
-- **TypeScript + Node.js 18** for a strongly typed developer experience.
+- **TypeScript + Node.js 22 LTS** for a strongly typed developer experience.
 - **Express.js** with `express-graphql` to expose the GraphQL endpoint.
 - **Oracle Database 19c** (or compatible) as the relational store.
 - **Redis 6+** for caching (falls back to in-memory cache when unavailable).
 - **Winston** for structured logging and `jsonwebtoken` for JWT issuance.
 
 ## Requirements
-- Node.js 18+
+- Node.js 22.11.0 (LTS) or newer 22.x release
 - Yarn 1.22+
+
+## Node Version Management
+- An `.nvmrc` file pins the runtime to Node.js 22.11.0. Run `nvm use` (or your
+  tool of choice) to automatically select the correct version.
+- After switching Node major versions, reinstall native dependencies to rebuild
+  prebuilt binaries: `rm -rf node_modules && yarn install`.
+- The `yarn build` script remains the quickest sanity check once the upgrade is
+  complete.
 - Oracle Database 19c (reachable from the API process)
 - Redis 6+ (optional but recommended)
 

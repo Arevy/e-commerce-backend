@@ -2,6 +2,36 @@
 import oracledb from 'oracledb'
 import { getConnectionFromPool } from '../config/database'
 import { logger } from '../utils/logger'
+import { Product } from '../models/product'
+
+const PRODUCT_SELECT = `
+  SELECT
+    p.ID,
+    p.NAME,
+    p.PRICE,
+    p.DESCRIPTION,
+    p.CATEGORY_ID,
+    c.ID,
+    c.NAME,
+    c.DESCRIPTION
+  FROM PRODUCTS p
+  LEFT JOIN CATEGORIES c ON c.ID = p.CATEGORY_ID
+`
+
+const mapProductRow = (row: any[]): Product => ({
+  id: row[0],
+  name: row[1],
+  price: row[2],
+  description: row[3],
+  categoryId: row[4],
+  category: row[5]
+    ? {
+        id: row[5],
+        name: row[6],
+        description: row[7],
+      }
+    : null,
+})
 
 export const ProductService = {
   getAll: async (
@@ -9,63 +39,61 @@ export const ProductService = {
     offset?: number,
     name?: string,
     categoryId?: number,
-  ) => {
+  ): Promise<Product[]> => {
     const connection = await getConnectionFromPool()
     try {
-      let query = `SELECT ID, NAME, PRICE, DESCRIPTION, CATEGORY_ID FROM PRODUCTS WHERE 1=1`
-      const params: any = {}
+      const params: Record<string, unknown> = {}
+      const filters: string[] = []
 
       if (name) {
-        query += ` AND NAME LIKE :name`
-        params.name = `%${name}%`
+        filters.push('LOWER(p.NAME) LIKE :name')
+        params.name = `%${name.toLowerCase()}%`
       }
-      if (categoryId) {
-        query += ` AND CATEGORY_ID = :categoryId`
+      if (typeof categoryId === 'number') {
+        filters.push('p.CATEGORY_ID = :categoryId')
         params.categoryId = categoryId
       }
-      if (offset) {
-        query += ` OFFSET :offset ROWS`
+
+      let query = PRODUCT_SELECT
+      if (filters.length) {
+        query += ` WHERE ${filters.join(' AND ')}`
+      }
+      query += ' ORDER BY p.ID'
+
+      const pagination: string[] = []
+      if (typeof offset === 'number') {
+        pagination.push('OFFSET :offset ROWS')
         params.offset = offset
       }
-      if (limit) {
-        query += ` FETCH NEXT :limit ROWS ONLY`
+      if (typeof limit === 'number') {
+        pagination.push('FETCH NEXT :limit ROWS ONLY')
         params.limit = limit
+      }
+      if (pagination.length) {
+        query += ` ${pagination.join(' ')}`
       }
 
       const result = await connection.execute(query, params)
-      return result.rows.map((row: any[]) => ({
-        id: row[0],
-        name: row[1],
-        price: row[2],
-        description: row[3],
-        categoryId: row[4],
-      }))
+      return (result.rows || []).map((row: any[]) => mapProductRow(row))
     } catch (err) {
-      logger.error('Error in ProductService.getAll:', err)
+      logger.error(`Error in ProductService.getAll: ${err}`)
       throw err
     } finally {
       await connection.close()
     }
   },
 
-  getById: async (id: number) => {
+  getById: async (id: number): Promise<Product | null> => {
     const connection = await getConnectionFromPool()
     try {
       const result = await connection.execute(
-        `SELECT ID, NAME, PRICE, DESCRIPTION, CATEGORY_ID FROM PRODUCTS WHERE ID = :id`,
+        `${PRODUCT_SELECT} WHERE p.ID = :id`,
         { id },
       )
-      if (!result.rows.length) return null
-      const [row] = result.rows
-      return {
-        id: row[0],
-        name: row[1],
-        price: row[2],
-        description: row[3],
-        categoryId: row[4],
-      }
+      if (!result.rows?.length) return null
+      return mapProductRow(result.rows[0] as any[])
     } catch (err) {
-      logger.error('Error in ProductService.getById:', err)
+      logger.error(`Error in ProductService.getById: ${err}`)
       throw err
     } finally {
       await connection.close()
@@ -75,9 +103,9 @@ export const ProductService = {
   add: async (
     name: string,
     price: number,
-    description: string,
+    description: string | undefined,
     categoryId: number,
-  ) => {
+  ): Promise<Product> => {
     const connection = await getConnectionFromPool()
     try {
       const result = await connection.execute(
@@ -93,9 +121,15 @@ export const ProductService = {
         },
         { autoCommit: true },
       )
-      return { id: result.outBinds.id[0], name, price, description }
+
+      const newId = (result.outBinds as any).id[0]
+      const created = await ProductService.getById(newId)
+      if (!created) {
+        throw new Error('Failed to load created product')
+      }
+      return created
     } catch (err) {
-      logger.error('Error in ProductService.add:', err)
+      logger.error(`Error in ProductService.add: ${err}`)
       throw err
     } finally {
       await connection.close()
@@ -107,25 +141,55 @@ export const ProductService = {
     name?: string,
     price?: number,
     description?: string,
-  ) => {
+    categoryId?: number,
+  ): Promise<Product> => {
     const connection = await getConnectionFromPool()
     try {
+      const fields: string[] = []
+      const params: Record<string, unknown> = { id }
+
+      if (name !== undefined) {
+        fields.push('NAME = :name')
+        params.name = name
+      }
+      if (price !== undefined) {
+        fields.push('PRICE = :price')
+        params.price = price
+      }
+      if (description !== undefined) {
+        fields.push('DESCRIPTION = :description')
+        params.description = description
+      }
+      if (categoryId !== undefined) {
+        fields.push('CATEGORY_ID = :categoryId')
+        params.categoryId = categoryId
+      }
+
+      if (!fields.length) {
+        throw new Error('Nothing to update for product')
+      }
+
       const result = await connection.execute(
-        `UPDATE PRODUCTS SET
-           NAME = COALESCE(:name, NAME),
-           PRICE = COALESCE(:price, PRICE),
-           DESCRIPTION = COALESCE(:description, DESCRIPTION)
-         WHERE ID = :id`,
-        { id, name, price, description },
+        `UPDATE PRODUCTS SET ${fields.join(', ')} WHERE ID = :id`,
+        params,
         { autoCommit: true },
       )
-      return result.rowsAffected! > 0
+
+      if (!result.rowsAffected) {
+        throw new Error(`Product ${id} not found`)
+      }
     } catch (err) {
-      logger.error('Error in ProductService.update:', err)
+      logger.error(`Error in ProductService.update: ${err}`)
       throw err
     } finally {
       await connection.close()
     }
+
+    const updated = await ProductService.getById(id)
+    if (!updated) {
+      throw new Error(`Product ${id} not found after update`)
+    }
+    return updated
   },
 
   delete: async (id: number) => {
@@ -136,9 +200,9 @@ export const ProductService = {
         { id },
         { autoCommit: true },
       )
-      return result.rowsAffected! > 0
+      return (result.rowsAffected || 0) > 0
     } catch (err) {
-      logger.error('Error in ProductService.delete:', err)
+      logger.error(`Error in ProductService.delete: ${err}`)
       throw err
     } finally {
       await connection.close()

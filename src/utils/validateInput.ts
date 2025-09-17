@@ -1,13 +1,19 @@
 export const validateInput = (input: any, schema: any) => {
   for (const key in schema) {
-    if (
-      schema[key].required &&
-      (input[key] === null || input[key] === undefined)
-    ) {
+    const value = input[key]
+    const rules = schema[key]
+
+    if (rules.required && (value === null || value === undefined)) {
       throw new Error(`${key} is required`)
     }
-    if (schema[key].type && typeof input[key] !== schema[key].type) {
-      throw new Error(`${key} must be of type ${schema[key].type}`)
+
+    if (
+      rules.type &&
+      value !== null &&
+      value !== undefined &&
+      typeof value !== rules.type
+    ) {
+      throw new Error(`${key} must be of type ${rules.type}`)
     }
   }
 }

@@ -7,18 +7,25 @@ import {
 
 export const orderResolver = {
   Query: {
-    getOrders: (_: any, { userId }: { userId: string }) =>
+    getOrders: (_: unknown, { userId }: { userId: string }) =>
       OrderService.getByUser(Number(userId)),
   },
 
   Mutation: {
-    createOrder: (_: any, args: CreateOrderArgs) =>
-      OrderService.create(args.userId, args.products),
+    createOrder: (_: unknown, args: CreateOrderArgs) =>
+      OrderService.create(
+        Number(args.userId),
+        args.products.map((item) => ({
+          productId: Number(item.productId),
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      ),
 
-    updateOrderStatus: (_: any, args: UpdateOrderStatusArgs) =>
-      OrderService.updateStatus(args.orderId, args.status),
+    updateOrderStatus: (_: unknown, args: UpdateOrderStatusArgs) =>
+      OrderService.updateStatus(Number(args.orderId), args.status),
 
-    deleteOrder: (_: any, args: DeleteOrderArgs) =>
-      OrderService.delete(args.orderId),
+    deleteOrder: (_: unknown, args: DeleteOrderArgs) =>
+      OrderService.delete(Number(args.orderId)),
   },
 }

@@ -10,27 +10,27 @@ export interface NameFilterArgs {
 export interface CategoryFilterArgs extends PaginationArgs, NameFilterArgs {}
 
 export interface ProductFilterArgs extends PaginationArgs, NameFilterArgs {
-  categoryId?: number
+  categoryId?: string | number
 }
 
 export interface OrderProductInput {
-  productId: number
+  productId: number | string
   quantity: number
   price: number
 }
 
 export interface CreateOrderArgs {
-  userId: number
+  userId: number | string
   products: OrderProductInput[]
 }
 
 export interface UpdateOrderStatusArgs {
-  orderId: number
+  orderId: number | string
   status: string
 }
 
 export interface DeleteOrderArgs {
-  orderId: number
+  orderId: number | string
 }
 
 export interface RegisterArgs {

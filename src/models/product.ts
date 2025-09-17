@@ -1,10 +1,10 @@
-import { Category } from "./category"
+import { Category } from './category'
 
 export interface Product {
   id: number
   name: string
   price: number
-  description?: string
+  description?: string | null
   categoryId?: number | null
   category?: Category | null
 }

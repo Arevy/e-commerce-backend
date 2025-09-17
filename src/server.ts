@@ -1,25 +1,46 @@
 import express from 'express'
 import { graphqlHTTP } from 'express-graphql'
-import schema from './graphql/schema'
-import { closeDatabaseConnection, connectToDatabase } from './config/database'
 import { makeExecutableSchema } from '@graphql-tools/schema'
-import { productResolver } from './graphql/resolvers/productResolver'
-import { categoryResolver } from './graphql/resolvers/categoryResolver'
+import { typeDefs } from './graphql/schema'
 import { logger } from './utils/logger'
+import { addressResolver } from './graphql/resolvers/addressResolver'
+import { cartResolver } from './graphql/resolvers/cartResolver'
+import { categoryResolver } from './graphql/resolvers/categoryResolver'
 import { orderResolver } from './graphql/resolvers/orderResolver'
+import { paymentResolver } from './graphql/resolvers/paymentResolver'
+import { productResolver } from './graphql/resolvers/productResolver'
+import { reviewResolver } from './graphql/resolvers/reviewResolver'
 import { userResolver } from './graphql/resolvers/userResolver'
+import { wishlistResolver } from './graphql/resolvers/wishlistResolver'
+import { connectToDatabase, closeDatabaseConnection } from './config/database'
+import { connectRedis, disconnectRedis } from './config/redis'
 
 export const startServer = async () => {
   const app = express()
+
+  app.use(express.json())
 
   app.use((req, res, next) => {
     logger.info(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
     next()
   })
+
   await connectToDatabase()
+  await connectRedis()
+
   const executableSchema = makeExecutableSchema({
-    typeDefs: schema,
-    resolvers: [productResolver, categoryResolver, userResolver, orderResolver],
+    typeDefs,
+    resolvers: [
+      productResolver,
+      categoryResolver,
+      userResolver,
+      orderResolver,
+      cartResolver,
+      wishlistResolver,
+      reviewResolver,
+      addressResolver,
+      paymentResolver,
+    ],
   })
 
   app.use(
@@ -28,7 +49,7 @@ export const startServer = async () => {
       schema: executableSchema,
       graphiql: true,
       customFormatErrorFn: (error) => {
-        logger.error('[GraphQL Error]', error.message)
+        logger.error(`[GraphQL Error] ${error.message}`)
         return {
           message: error.message,
           locations: error.locations,
@@ -43,15 +64,12 @@ export const startServer = async () => {
     logger.info(`Server running on http://localhost:${PORT}/graphql`)
   })
 
-  app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.url}`)
-    next()
-  })
-  // await startServer()
-
-  process.on('SIGINT', async () => {
-    logger.info('SIGINT received. Closing connection pool...')
-    await closeDatabaseConnection()
+  const gracefulShutdown = async () => {
+    logger.info('Shutting down. Closing resources...')
+    await Promise.allSettled([closeDatabaseConnection(), disconnectRedis()])
     process.exit(0)
-  })
+  }
+
+  process.on('SIGINT', gracefulShutdown)
+  process.on('SIGTERM', gracefulShutdown)
 }

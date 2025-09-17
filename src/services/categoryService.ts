@@ -12,45 +12,55 @@ export const CategoryService = {
   ): Promise<Category[]> => {
     const connection = await getConnectionFromPool()
     try {
-      let query = `SELECT ID, NAME, DESCRIPTION FROM CATEGORIES WHERE 1=1`
-      const params: any = {}
+      const params: Record<string, unknown> = {}
+      const filters: string[] = []
 
       if (name) {
-        query += ` AND NAME LIKE :name`
-        params.name = `%${name}%`
+        filters.push('LOWER(NAME) LIKE :name')
+        params.name = `%${name.toLowerCase()}%`
       }
-      if (offset) {
-        query += ` OFFSET :offset ROWS`
+
+      let query = `SELECT ID, NAME, DESCRIPTION FROM CATEGORIES`
+      if (filters.length) {
+        query += ` WHERE ${filters.join(' AND ')}`
+      }
+      query += ' ORDER BY ID'
+
+      const pagination: string[] = []
+      if (typeof offset === 'number') {
+        pagination.push('OFFSET :offset ROWS')
         params.offset = offset
       }
-      if (limit) {
-        query += ` FETCH NEXT :limit ROWS ONLY`
+      if (typeof limit === 'number') {
+        pagination.push('FETCH NEXT :limit ROWS ONLY')
         params.limit = limit
+      }
+      if (pagination.length) {
+        query += ` ${pagination.join(' ')}`
       }
 
       const result = await connection.execute(query, params)
-      return result.rows.map((row: any[]) => ({
+      return (result.rows || []).map((row: any[]) => ({
         id: row[0],
         name: row[1],
         description: row[2],
       }))
     } catch (err) {
-      logger.error('Error in CategoryService.getAll:', err)
+      logger.error(`Error in CategoryService.getAll: ${err}`)
       throw err
     } finally {
       await connection.close()
     }
   },
 
-  add: async (name: string, description: string): Promise<Category> => {
+  add: async (name: string, description?: string | null): Promise<Category> => {
     const connection = await getConnectionFromPool()
     try {
-      // verificare unicitate
       const exists = await connection.execute(
-        `SELECT ID FROM CATEGORIES WHERE NAME = :name`,
-        { name },
+        `SELECT ID FROM CATEGORIES WHERE LOWER(NAME) = :name`,
+        { name: name.toLowerCase() },
       )
-      if (exists.rows.length) {
+      if (exists.rows?.length) {
         throw new Error(`Category "${name}" already exists`)
       }
 
@@ -65,36 +75,57 @@ export const CategoryService = {
         },
         { autoCommit: true },
       )
-      return { id: result.outBinds.id[0], name, description }
+
+      const id = (result.outBinds as any).id[0]
+      return { id, name, description: description ?? undefined }
     } catch (err) {
-      logger.error('Error in CategoryService.add:', err)
+      logger.error(`Error in CategoryService.add: ${err}`)
       throw err
     } finally {
       await connection.close()
     }
   },
 
-  update: async (id: number, name?: string, description?: string) => {
+  update: async (
+    id: number,
+    name?: string,
+    description?: string,
+  ): Promise<Category> => {
     const connection = await getConnectionFromPool()
     try {
+      const fields: string[] = []
+      const params: Record<string, unknown> = { id }
+
+      if (name !== undefined) {
+        fields.push('NAME = :name')
+        params.name = name
+      }
+      if (description !== undefined) {
+        fields.push('DESCRIPTION = :description')
+        params.description = description
+      }
+
+      if (!fields.length) {
+        throw new Error('Nothing to update for category')
+      }
+
       const result = await connection.execute(
-        `UPDATE CATEGORIES SET
-           NAME = COALESCE(:name, NAME),
-           DESCRIPTION = COALESCE(:description, DESCRIPTION)
-         WHERE ID = :id`,
-        { id, name, description },
+        `UPDATE CATEGORIES SET ${fields.join(', ')} WHERE ID = :id`,
+        params,
         { autoCommit: true },
       )
-      if (result.rowsAffected === 0) {
+
+      if (!result.rowsAffected) {
         throw new Error(`Category ${id} not found`)
       }
-      return { id, name, description }
     } catch (err) {
-      logger.error('Error in CategoryService.update:', err)
+      logger.error(`Error in CategoryService.update: ${err}`)
       throw err
     } finally {
       await connection.close()
     }
+
+    return CategoryService.getById(id)
   },
 
   delete: async (id: number) => {
@@ -105,10 +136,31 @@ export const CategoryService = {
         { id },
         { autoCommit: true },
       )
-      return result.rowsAffected > 0
+      return (result.rowsAffected || 0) > 0
     } catch (err) {
-      logger.error('Error in CategoryService.delete:', err)
+      logger.error(`Error in CategoryService.delete: ${err}`)
       throw err
+    } finally {
+      await connection.close()
+    }
+  },
+
+  getById: async (id: number): Promise<Category> => {
+    const connection = await getConnectionFromPool()
+    try {
+      const result = await connection.execute(
+        `SELECT ID, NAME, DESCRIPTION FROM CATEGORIES WHERE ID = :id`,
+        { id },
+      )
+      if (!result.rows?.length) {
+        throw new Error(`Category ${id} not found`)
+      }
+      const row = result.rows[0] as any[]
+      return {
+        id: row[0],
+        name: row[1],
+        description: row[2],
+      }
     } finally {
       await connection.close()
     }

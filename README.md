@@ -1,282 +1,143 @@
-# E-commerce Backend Setup
+# E-commerce Backend
 
-This README provides step-by-step instructions to set up the database and test the functionality of the e-commerce backend project from scratch.
+Backend GraphQL service for a storefront + admin e-commerce experience. It runs on
+Express, connects to Oracle Database for persistence, and optionally uses Redis
+(or a built-in memory fallback) for caching hot reads.
 
----
+- Supports catalog, cart, checkout, payments, wishlists, reviews, and address
+  management flows required by both customer and admin surfaces.
+- Ships with SQL bootstrap + seed data so every resolver can be exercised out of
+  the box.
+- JWT-based authentication with sample test accounts for quick manual testing.
 
-## Technology Stack Overview
+## Technology Stack
+- **TypeScript + Node.js 18** for a strongly typed developer experience.
+- **Express.js** with `express-graphql` to expose the GraphQL endpoint.
+- **Oracle Database 19c** (or compatible) as the relational store.
+- **Redis 6+** for caching (falls back to in-memory cache when unavailable).
+- **Winston** for structured logging and `jsonwebtoken` for JWT issuance.
 
-### 1. **Programming Language**
+## Requirements
+- Node.js 18+
+- Yarn 1.22+
+- Oracle Database 19c (reachable from the API process)
+- Redis 6+ (optional but recommended)
 
-- **TypeScript**: A strongly typed superset of JavaScript that compiles to plain JavaScript. It ensures type safety, improves code quality, and helps catch errors during development.
+## Environment Variables
+Copy `.env.example` (create it if missing) to `.env` and adjust values. All keys
+are consumed via `src/config`.
 
-### 2. **Runtime**
+```dotenv
+# Oracle connection
+DB_USER=your_oracle_username
+DB_PASSWORD=your_oracle_password
+DB_CONNECT_STRING=localhost:1521/ORCLCDB
+DB_POOL_MIN=1
+DB_POOL_MAX=4
+DB_POOL_INCREMENT=1
 
-- **Node.js**: JavaScript runtime used for building scalable, high-performance server-side applications.
+# Auth
+JWT_SECRET=replace_me_with_a_real_secret
 
-### 3. **Web Framework**
+# Redis connection (optional)
+REDIS_URL=redis://localhost:6379
+# or individually
+# REDIS_HOST=127.0.0.1
+# REDIS_PORT=6379
+# Set to "true" to force the in-memory cache
+REDIS_DISABLED=false
 
-- **Express.js**: A lightweight and flexible web application framework for Node.js, used to build RESTful APIs and GraphQL endpoints.
+# App
+PORT=4000
+```
 
-### 4. **GraphQL**
+## Oracle Setup
+1. Ensure an Oracle instance (e.g. `ORCLCDB`) is running and reachable.
+2. Connect as the application user and run `sql_script.txt` to recreate the
+   schema and seed data end-to-end:
 
-- **GraphQL**: A query language for APIs that allows clients to request only the data they need.
-  - GraphQL enables flexible and efficient communication between the backend and frontend.
-  - Integrated with the `express-graphql` middleware for seamless operation with the Express framework.
-
-### 5. **Database**
-
-- **Oracle Database**: A powerful relational database management system used to store and manage application data.
-  - **Instance**: `ORCLCDB` running on `localhost`.
-  - **Key Features**:
-    - High scalability and reliability.
-    - ACID compliance for secure transactions.
-    - Advanced indexing and query optimization.
-
-### 6. **Authentication**
-
-- **JWT (JSON Web Tokens)**: A secure method for implementing authentication and authorization.
-  - Tokens are signed with a secret key and include user-specific claims.
-
----
-
-## Oracle Database Configuration
-
-### Why Oracle Database?
-
-- **Reliability**: Proven enterprise-grade database management.
-- **Performance**: Optimized for complex queries and high transaction loads.
-- **Flexibility**: Supports advanced SQL features, transactions, and stored procedures.
-
-### Oracle Database Instance
-
-- The backend connects to an Oracle Database instance with the following details:
-  - **Service Name**: `ORCLCDB`
-  - **Host**: `localhost`
-  - **Port**: `1521`
-
-### Steps to Set Up Oracle Database
-
-1. **Install Oracle Database**:
-   Download and install Oracle Database on your machine following [official documentation](https://www.oracle.com/database/technologies/).
-
-2. **Start the Oracle Database Instance**:
-   Ensure the database instance is running:
-   ```bash
-   sqlplus / as sysdba
-   STARTUP;
+   ```sql
+   @sql_script.txt
    ```
 
----
+   The script first drops existing tables owned by the user (so it is safe to
+   re-run when you need a clean slate), then builds every table used by the
+   resolvers and populates sample categories, products, users, addresses, carts,
+   wishlists, reviews, orders, order items, and payments so each GraphQL
+   mutation/query can be exercised immediately.
 
-## Prerequisites
+### Default Test Accounts
+| Email               | Password       | Notes                       |
+|---------------------|----------------|-----------------------------|
+| `alice@example.com` | `Password123!` | Customer with existing data |
+| `bob@example.com`   | `Password123!` | Secondary customer          |
 
-- **Node.js Version**: `18.18.0`
-- **Package Manager**: Yarn
-- **Oracle Database**: Running and accessible
+Passwords are stored hashed in the seed script and compatible with the `login`
+resolver.
 
----
+## Install & Run
+```bash
+yarn install
+yarn build       # compile TypeScript to dist/
 
-## Environment Variables (`.env`)
+# Development with hot reload
+yarn dev         # runs src/index.ts via ts-node-dev
 
-Create a `.env` file in the root of your project with the following content:
-
-```plaintext
-# Database Configuration
-DB_USER=your_oracle_db_username
-DB_PASSWORD=your_oracle_db_password
-DB_CONNECT_STRING=localhost:1521/ORCLCDB
-
-# JWT Secret
-JWT_SECRET=your_secret_key
+# Production build
+yarn start       # executes the compiled dist/index.js
 ```
 
-# JWT Secret
+GraphQL is available at `http://localhost:${PORT:-4000}/graphql` with GraphiQL
+enabled in non-production environments.
 
-JWT_SECRET=your_secret_key
+## Redis Usage
+- The service attempts to connect to Redis on launch. When unreachable or when
+  `REDIS_DISABLED=true`, a scoped in-memory cache is used for cart and wishlist
+  reads.
+- Cache keys live for 60 seconds and are evicted whenever mutating operations on
+  the same resource complete.
 
----
+## Database Footprint
+The schema provisions:
+- `CATEGORIES`, `PRODUCTS`
+- `USERS`, `ADDRESSES`
+- `ORDERS`, `ORDER_ITEMS`, `PAYMENTS`
+- `CART_ITEMS`, `WISHLIST`
+- `REVIEWS`
 
-## Database Setup
+Each table receives seed data aligned with the GraphQL samples documented under
+`docs/graphql-operations.md`.
 
-### **Create Database Tables**
+## Exercising the GraphQL API
+A comprehensive, domain-by-domain catalogue of queries and mutations (with sample
+payloads driven by the seeded data) lives in `docs/graphql-operations.md`. Use it
+as the definitive playbook when testing storefront and admin interactions.
 
-Run the following SQL commands to create the required tables.
-
-#### Create `CATEGORIES` Table
-
-```sql
-CREATE TABLE CATEGORIES (
-  ID NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  NAME VARCHAR2(255) NOT NULL UNIQUE,
-  DESCRIPTION VARCHAR2(500)
-);
-```
-
-#### Create `PRODUCTS` Table
-
-```sql
-CREATE TABLE PRODUCTS (
-  ID NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  NAME VARCHAR2(255) NOT NULL,
-  PRICE NUMBER(10, 2) NOT NULL,
-  DESCRIPTION VARCHAR2(500),
-  CATEGORY_ID NUMBER,
-  CONSTRAINT FK_PRODUCTS_CATEGORIES FOREIGN KEY (CATEGORY_ID)
-  REFERENCES CATEGORIES (ID)
-);
-```
-
-#### Populate CATEGORIES Table
-
-Add initial categories to the database.
-
-```sql
-INSERT INTO CATEGORIES (NAME, DESCRIPTION) VALUES ('Electronics', 'Electronic devices and gadgets');
-INSERT INTO CATEGORIES (NAME, DESCRIPTION) VALUES ('Books', 'Wide variety of books');
-INSERT INTO CATEGORIES (NAME, DESCRIPTION) VALUES ('Clothing', 'Apparel and accessories');
-COMMIT;
-```
-
-#### Populate PRODUCTS Table
-
-Add initial products to the database and associate them with categories.
-
-```sql
-INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-VALUES ('Laptop', 999.99, 'High-performance laptop', 1);
-
-INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-VALUES ('Smartphone', 799.99, 'Latest model with advanced features', 1);
-
-INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-VALUES ('Science Fiction Novel', 19.99, 'Explore distant worlds and adventures', 2);
-
-INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-VALUES ('T-Shirt', 15.99, 'Comfortable cotton T-shirt', 3);
-COMMIT;
-```
-
-# GraphQL API Setup
-
-This section includes all GraphQL queries and mutations needed to set up and validate the backend functionality. Comments are included for clarity.
-
----
-
-## 1. Add a New Category
-
-Use this mutation to add a new category to the database.
-
-```graphql
-# Mutation to add a new category
-mutation {
-  addCategory(name: "Home Appliances", description: "Appliances for home use") {
-    id # The unique ID of the category
-    name # The name of the category
-    description # The description of the category
-  }
-}
-```
-
-## 2. Add a New Product
-
-Use this mutation to add a new product to the database and associate it with an existing category.
-
-**Note:** Ensure the `categoryId` provided exists in the database. If the `categoryId` is invalid, the mutation will return an error.
-
-```graphql
-# Mutation to add a new product
-mutation {
-  addProduct(
-    name: "Washing Machine" # The name of the product
-    price: 499.99 # The price of the product
-    description: "Efficient front-load washing machine" # Product description
-    categoryId: 1 # The ID of the category to associate with this product
-  ) {
-    id # The unique ID of the product
-    name # The name of the product
-    price # The price of the product
-    description # The description of the product
-    category {
-      # The associated category details
-      id # The ID of the associated category
-      name # The name of the associated category
-    }
-  }
-}
-```
-
-## 3. Get All Categories with Products
-
-Use this query to retrieve all categories and the products associated with each category.
-
-```graphql
-# Query to fetch all categories with their associated products
-query {
-  getCategories {
-    id # The unique ID of the category
-    name # The name of the category
-    description # The description of the category
-    products {
-      # List of products in this category
-      id # The unique ID of the product
-      name # The name of the product
-      price # The price of the product
-      description # The description of the product
-    }
-  }
-}
-```
-
-## 4. Get All Products with Their Categories
-
-Use this query to retrieve all products and the categories they belong to.
-
-```graphql
-# Query to fetch all products with their associated categories
-query {
-  getProducts {
-    id # The unique ID of the product
-    name # The name of the product
-    price # The price of the product
-    description # The description of the product
-    category {
-      # The associated category details
-      id # The ID of the associated category
-      name # The name of the associated category
-    }
-  }
-}
-```
-
-# Testing GraphQL API with cURL
-
-This section explains how to test the GraphQL API using cURL. This is particularly useful for verifying the API in case of backups or automated scripts.
-
----
-
-## Verify API Connection
-
-To ensure the server and API are functioning correctly, you can test the connection by sending a request to add a product.
-
-### Test Adding a Product
-
-Run the following cURL command:
+For quick smoke tests you can also issue cURL requests:
 
 ```bash
+# Add a category
 curl -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query":"mutation { addProduct(name: \"Test\", price: 10.0, description: \"Test desc\") { id name price description }}"}'
+  -d '{"query":"mutation { addCategory(name: \"Kitchen\", description: \"Appliances\") { id name }}"}'
+
+# Fetch products with filters
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"query { getProducts(limit: 5, name: \"Laptop\") { id name price category { name } }}"}'
 ```
 
-```bash
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"mutation { addProduct(name: \"Test\", price: 10.0, description: \"Test desc\", categoryId: 1) { id name price description category { id name } }}"}'
-```
+## Logging & Shutdown
+- `src/utils/logger.ts` wires Winston for JSON logs.
+- Graceful shutdown hooks close the Oracle pool and Redis client on `SIGINT` and
+  `SIGTERM` so in-flight work completes cleanly.
 
-```bash
-curl -X POST http://localhost:4000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"query { getProducts { id name price description category { id name } }}"}'
-```
+## Quality Checklist
+1. `yarn build` — ensures the TypeScript project compiles.
+2. Exercise critical GraphQL flows via GraphiQL or the cURL snippets above.
+3. Toggle `REDIS_DISABLED=true` to validate the in-memory cache fallback.
+
+## Additional Documentation
+- `docs/graphql-operations.md` — end-to-end operations catalogue with payloads
+  and expected responses.
+- `docs/backend-backlog.md` — backlog of remaining production hardening tasks.

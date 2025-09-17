@@ -33,6 +33,45 @@ const fetchPaymentById = async (paymentId: number) => {
 }
 
 export const PaymentService = {
+  getAll: async (filters?: {
+    orderId?: number
+    status?: string
+  }): Promise<Payment[]> => {
+    const conn = await getConnectionFromPool()
+    try {
+      const where: string[] = []
+      const params: Record<string, unknown> = {}
+
+      if (filters?.orderId !== undefined) {
+        where.push('ORDER_ID = :oid')
+        params.oid = filters.orderId
+      }
+      if (filters?.status) {
+        where.push('STATUS = :status')
+        params.status = filters.status
+      }
+
+      let query = `SELECT ID,
+              ORDER_ID,
+              AMOUNT,
+              METHOD,
+              STATUS,
+              TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+         FROM PAYMENTS`
+
+      if (where.length) {
+        query += ` WHERE ${where.join(' AND ')}`
+      }
+
+      query += ' ORDER BY CREATED_AT DESC'
+
+      const res = await conn.execute(query, params)
+      return (res.rows || []).map((row: any[]) => mapPaymentRow(row))
+    } finally {
+      await conn.close()
+    }
+  },
+
   create: async (
     orderId: number,
     amount: number,

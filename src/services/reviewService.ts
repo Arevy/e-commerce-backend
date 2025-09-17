@@ -35,6 +35,45 @@ const fetchReviewById = async (reviewId: number) => {
 }
 
 export const ReviewService = {
+  getAll: async (filters?: {
+    productId?: number
+    userId?: number
+  }): Promise<Review[]> => {
+    const conn = await getConnectionFromPool()
+    try {
+      const where: string[] = []
+      const params: Record<string, unknown> = {}
+
+      if (filters?.productId !== undefined) {
+        where.push('PRODUCT_ID = :pid')
+        params.pid = filters.productId
+      }
+      if (filters?.userId !== undefined) {
+        where.push('USER_ID = :uid')
+        params.uid = filters.userId
+      }
+
+      let query = `SELECT ID,
+                PRODUCT_ID,
+                USER_ID,
+                RATING,
+                REVIEW_TEXT,
+                TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+           FROM REVIEWS`
+
+      if (where.length) {
+        query += ` WHERE ${where.join(' AND ')}`
+      }
+
+      query += ' ORDER BY CREATED_AT DESC'
+
+      const res = await conn.execute(query, params)
+      return (res.rows || []).map((row: any[]) => mapReviewRow(row))
+    } finally {
+      await conn.close()
+    }
+  },
+
   getByProduct: async (productId: number): Promise<Review[]> => {
     const conn = await getConnectionFromPool()
     try {
@@ -149,4 +188,7 @@ export const ReviewService = {
       await conn.close()
     }
   },
+
+  getById: async (reviewId: number): Promise<Review | null> =>
+    fetchReviewById(reviewId),
 }

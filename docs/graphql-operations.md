@@ -6,13 +6,15 @@ IDs originate from `sql_script.txt`, which rebuilds the schema from scratch on
 every run.
 
 > **Identity note**: Until context-based auth is implemented (see
-> `docs/backend-backlog.md`), mutations accept `userId` arguments directly. Use
-> the seeded users or register fresh accounts during testing.
+> `docs/backend-backlog.md`), mutations accept `userId` arguments directly. The
+> new `customerSupport` namespace follows the same rule. Use the seeded users
+> (including the support agent) or register fresh accounts during testing.
 
 ## Seeded Dataset Snapshot
 - **Users**
-  - `alice@example.com` (`Password123!`) → `id = 1`
-  - `bob@example.com` (`Password123!`) → `id = 2`
+  - `alice@example.com` (`Password123!`, role `CUSTOMER`) → `id = 1`
+  - `bob@example.com` (`Password123!`, role `CUSTOMER`) → `id = 2`
+  - `support@example.com` (`Password123!`, role `SUPPORT`) → `id = 3`
 - **Categories**
   - `1 = Electronics`, `2 = Books`, `3 = Clothing`
 - **Products**
@@ -37,10 +39,11 @@ query AllUsers {
     id
     email
     name
+    role
   }
 }
 ```
-Expected: two entries (`alice@example.com`, `bob@example.com`).
+Expected: the seeded customers plus the support agent.
 
 ### Exercise Mutations
 ```graphql
@@ -382,3 +385,84 @@ mutation DeletePayment($paymentId: ID!) {
   second call should be served from Redis if available.
 - For regressions or future features, extend this document with new scenarios so
   QA and frontend teams retain a single source of truth.
+
+## 10. Customer Support Namespace
+The `customerSupport` field exposes a grouped set of resolvers tailored for
+support agents. Every query/mutation available to shoppers is mirrored here so
+agents can audit or remediate data without juggling user-specific IDs. Because
+Auth context is still TODO, you can call the namespace directly once you have an
+API token (or while running GraphiQL locally).
+
+### Read Examples
+Fetch all orders (optionally filter by `status` or `userId`) alongside support
+roster details:
+
+```graphql
+query SupportOverview {
+  customerSupport {
+    users(role: SUPPORT) {
+      id
+      email
+      role
+    }
+    orders(status: "PENDING") {
+      id
+      userId
+      status
+      total
+    }
+  }
+}
+```
+
+Other helpful calls include `customerSupport.product(id: ID!)`,
+`customerSupport.payments(orderId: ID)`, and `customerSupport.reviews(productId:
+ID)`.
+
+### Mutation Examples
+Create a dedicated escalation contact, then immediately seed them with a
+shipping address:
+
+```graphql
+mutation ProvisionSupportUser {
+  customerSupport {
+    createUser(
+      email: "agent2@example.com"
+      password: "AnotherSup3rSecret!"
+      name: "Escalation Desk"
+      role: SUPPORT
+    ) {
+      id
+      email
+      role
+    }
+  }
+}
+```
+Take the returned `id` and stitch in follow-up calls:
+
+```graphql
+mutation UpdateSupportFixtures($userId: ID!) {
+  customerSupport {
+    addAddress(
+      userId: $userId
+      street: "400 Admin Way"
+      city: "Austin"
+      postalCode: "73301"
+      country: "USA"
+    ) {
+      id
+      street
+    }
+    updateUser(id: $userId, name: "Tier 2 Support") {
+      id
+      name
+      role
+    }
+  }
+}
+```
+
+The namespace mirrors cart, wishlist, product, category, order, payment,
+address, and review mutations, so any remediation workflow that exists today can
+be run on behalf of customers from the same GraphQL entry point.

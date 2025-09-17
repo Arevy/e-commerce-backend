@@ -30,6 +30,27 @@ const fetchAddressById = async (addressId: number) => {
 }
 
 export const AddressService = {
+  getAll: async (userId?: number): Promise<Address[]> => {
+    const conn = await getConnectionFromPool()
+    try {
+      let query =
+        'SELECT ID, USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY FROM ADDRESSES'
+      const params: Record<string, unknown> = {}
+
+      if (userId !== undefined) {
+        query += ' WHERE USER_ID = :uid'
+        params.uid = userId
+      }
+
+      query += ' ORDER BY ID'
+
+      const res = await conn.execute(query, params)
+      return (res.rows || []).map((row: any[]) => mapAddressRow(row))
+    } finally {
+      await conn.close()
+    }
+  },
+
   getByUser: async (userId: number): Promise<Address[]> => {
     const conn = await getConnectionFromPool()
     try {
@@ -150,4 +171,7 @@ export const AddressService = {
       await conn.close()
     }
   },
+
+  getById: async (addressId: number): Promise<Address | null> =>
+    fetchAddressById(addressId),
 }

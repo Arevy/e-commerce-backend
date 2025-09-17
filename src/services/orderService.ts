@@ -69,6 +69,50 @@ const fetchOrderWithItems = async (orderId: number) => {
   }
 }
 
+const attachItems = async (
+  conn: oracledb.Connection,
+  orders: OrderRow[],
+) => {
+  if (!orders.length) {
+    return []
+  }
+
+  const placeholders = orders
+    .map((_order: OrderRow, idx: number) => `:orderId${idx}`)
+    .join(', ')
+  const params = orders.reduce<Record<string, unknown>>(
+    (acc: Record<string, unknown>, order: OrderRow, idx: number) => {
+      acc[`orderId${idx}`] = order.id
+      return acc
+    },
+    {},
+  )
+
+  const itemsRes = await conn.execute(
+    `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE
+       FROM ORDER_ITEMS
+      WHERE ORDER_ID IN (${placeholders})`,
+    params,
+  )
+  const items = (itemsRes.rows || []).map((row: any[]) => mapOrderItemRow(row))
+
+  const itemsByOrder = items.reduce<Record<number, OrderItemRow[]>>(
+    (acc: Record<number, OrderItemRow[]>, item: OrderItemRow) => {
+      if (!acc[item.orderId]) {
+        acc[item.orderId] = []
+      }
+      acc[item.orderId].push(item)
+      return acc
+    },
+    {},
+  )
+
+  return orders.map((order) => ({
+    ...order,
+    products: itemsByOrder[order.id] || [],
+  }))
+}
+
 export const OrderService = {
   create: async (userId: number, products: OrderProductInput[]) => {
     const conn = await getConnectionFromPool()
@@ -175,66 +219,63 @@ export const OrderService = {
     }
   },
 
-  getByUser: async (userId: number) => {
+  getAll: async (filters?: {
+    userId?: number
+    status?: string
+    limit?: number
+    offset?: number
+  }) => {
     const conn = await getConnectionFromPool()
     try {
-      const res = await conn.execute(
-        `SELECT ID, USER_ID, TOTAL, STATUS,
+      const where: string[] = []
+      const params: Record<string, unknown> = {}
+
+      if (filters?.userId !== undefined) {
+        where.push('USER_ID = :userId')
+        params.userId = filters.userId
+      }
+      if (filters?.status) {
+        where.push('STATUS = :status')
+        params.status = filters.status
+      }
+
+      let query = `SELECT ID, USER_ID, TOTAL, STATUS,
                 TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
                 TO_CHAR(UPDATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-           FROM ORDERS
-          WHERE USER_ID = :uid
-          ORDER BY CREATED_AT DESC`,
-        { uid: userId },
-      )
+           FROM ORDERS`
 
+      if (where.length) {
+        query += ` WHERE ${where.join(' AND ')}`
+      }
+
+      query += ' ORDER BY CREATED_AT DESC'
+
+      if (filters?.offset !== undefined) {
+        query += ' OFFSET :offset ROWS'
+        params.offset = filters.offset
+      }
+      if (filters?.limit !== undefined) {
+        query += ' FETCH NEXT :limit ROWS ONLY'
+        params.limit = filters.limit
+      }
+
+      const res = await conn.execute(query, params)
       const orders = (res.rows || []).map((row: any[]) => mapOrderRow(row))
       if (!orders.length) {
         return []
       }
 
-      const placeholders = orders
-        .map((_order: OrderRow, idx: number) => `:orderId${idx}`)
-        .join(', ')
-      const params = orders.reduce<Record<string, unknown>>(
-        (acc: Record<string, unknown>, order: OrderRow, idx: number) => {
-          acc[`orderId${idx}`] = order.id
-          return acc
-        },
-        {},
-      )
-      const itemsRes = await conn.execute(
-        `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE
-           FROM ORDER_ITEMS
-          WHERE ORDER_ID IN (${placeholders})`,
-        params,
-      )
-      const items = (itemsRes.rows || []).map((row: any[]) =>
-        mapOrderItemRow(row),
-      )
-
-      const itemsByOrder = items.reduce<
-        Record<number, OrderItemRow[]>
-      >(
-        (acc: Record<number, OrderItemRow[]>, item: OrderItemRow) => {
-          if (!acc[item.orderId]) {
-            acc[item.orderId] = []
-          }
-          acc[item.orderId].push(item)
-          return acc
-        },
-        {},
-      )
-
-      return orders.map((order: OrderRow) => ({
-        ...order,
-        products: itemsByOrder[order.id] || [],
-      }))
+      const hydrated = await attachItems(conn, orders)
+      return hydrated
     } catch (err) {
-      logger.error(`Error in OrderService.getByUser: ${err}`)
+      logger.error(`Error in OrderService.getAll: ${err}`)
       throw err
     } finally {
       await conn.close()
     }
   },
+
+  getByUser: async (userId: number) => OrderService.getAll({ userId }),
+
+  getById: async (orderId: number) => fetchOrderWithItems(orderId),
 }

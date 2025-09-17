@@ -6,6 +6,8 @@ Express, connects to Oracle Database for persistence, and optionally uses Redis
 
 - Supports catalog, cart, checkout, payments, wishlists, reviews, and address
   management flows required by both customer and admin surfaces.
+- Dedicated `customerSupport` GraphQL namespace so support agents can audit and
+  mutate every domain object without switching schemas.
 - Ships with SQL bootstrap + seed data so every resolver can be exercised out of
   the box.
 - JWT-based authentication with sample test accounts for quick manual testing.
@@ -77,8 +79,9 @@ PORT=4000
 ### Default Test Accounts
 | Email               | Password       | Notes                       |
 |---------------------|----------------|-----------------------------|
-| `alice@example.com` | `Password123!` | Customer with existing data |
-| `bob@example.com`   | `Password123!` | Secondary customer          |
+| `alice@example.com`   | `Password123!` | Customer with existing data |
+| `bob@example.com`     | `Password123!` | Secondary customer          |
+| `support@example.com` | `Password123!` | Customer support role       |
 
 Passwords are stored hashed in the seed script and compatible with the `login`
 resolver.
@@ -118,8 +121,10 @@ Each table receives seed data aligned with the GraphQL samples documented under
 
 ## Exercising the GraphQL API
 A comprehensive, domain-by-domain catalogue of queries and mutations (with sample
-payloads driven by the seeded data) lives in `docs/graphql-operations.md`. Use it
-as the definitive playbook when testing storefront and admin interactions.
+payloads driven by the seeded data) lives in `docs/graphql-operations.md`. It now
+also covers the `customerSupport` root field so agents can trial the dedicated
+admin surface without reverse engineering bespoke payloads. Use it as the
+definitive playbook when testing storefront and admin interactions.
 
 For quick smoke tests you can also issue cURL requests:
 

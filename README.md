@@ -41,6 +41,9 @@ are consumed via `src/config`.
 # Oracle connection
 DB_USER=your_oracle_username
 DB_PASSWORD=your_oracle_password
+DB_PASSWORD_NEW= # optional: supply when rotating an expired password
+DB_PASSWORD_ROTATE=false # set to true to let the API rotate an expired password
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3100
 DB_CONNECT_STRING=localhost:1521/ORCLCDB
 DB_POOL_MIN=1
 DB_POOL_MAX=4
@@ -76,6 +79,18 @@ PORT=4000
    wishlists, reviews, orders, order items, and payments so each GraphQL
    mutation/query can be exercised immediately.
 
+### Handling Expired Oracle Passwords
+- When Oracle forces a password rotation, first set `DB_PASSWORD` to the current
+  (expired) credential and `DB_PASSWORD_NEW` to the **new, different** password that
+  should replace it (Oracle rejects reusing the same value). Enable automated
+  rotation by setting `DB_PASSWORD_ROTATE=true`.
+    - The next server boot will detect the `ORA-28001` error, change the password
+  via Oracle's thin driver, and switch the connection pool to the new
+  credential.
+- Update your secrets storage (`.env`, vault, CI variables) so that subsequent
+  deployments use the new value and remove `DB_PASSWORD_NEW` after a successful
+  rotation.
+
 ### Default Test Accounts
 | Email               | Password       | Notes                       |
 |---------------------|----------------|-----------------------------|
@@ -103,10 +118,9 @@ enabled in non-production environments.
 
 ## Redis Usage
 - The service attempts to connect to Redis on launch. When unreachable or when
-  `REDIS_DISABLED=true`, a scoped in-memory cache is used for cart and wishlist
-  reads.
-- Cache keys live for 60 seconds and are evicted whenever mutating operations on
-  the same resource complete.
+  `REDIS_DISABLED=true`, a local memory takes over the role of the cache for the cart, wishlist and now CMS pages.
+- Keys are kept by default for 60 seconds and are automatically invalidated after
+move operations (including for the CMS service).
 
 ## Database Footprint
 The schema provisions:
@@ -115,6 +129,7 @@ The schema provisions:
 - `ORDERS`, `ORDER_ITEMS`, `PAYMENTS`
 - `CART_ITEMS`, `WISHLIST`
 - `REVIEWS`
+- `CMS_PAGES`
 
 Each table receives seed data aligned with the GraphQL samples documented under
 `docs/graphql-operations.md`.
@@ -154,3 +169,7 @@ curl -X POST http://localhost:4000/graphql \
 - `docs/graphql-operations.md` — end-to-end operations catalogue with payloads
   and expected responses.
 - `docs/backend-backlog.md` — backlog of remaining production hardening tasks.
+
+## Docker
+
+In the root of the project you will find a multi-stage `Dockerfile` and a `backend` service in `docker-compose.yml`. The image sets `npm_config_oracle_skip_postinstall=1` to avoid Oracle driver failures when the instant client libraries are not available; make sure to publish the `ORACLE_*` variables and mount the required libraries before running in production.

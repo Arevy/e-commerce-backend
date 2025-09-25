@@ -13,15 +13,35 @@ import { reviewResolver } from './graphql/resolvers/reviewResolver'
 import { userResolver } from './graphql/resolvers/userResolver'
 import { wishlistResolver } from './graphql/resolvers/wishlistResolver'
 import { customerSupportResolver } from './graphql/resolvers/customerSupportResolver'
+import { cmsResolver } from './graphql/resolvers/cmsResolver'
 import { connectToDatabase, closeDatabaseConnection } from './config/database'
 import { connectRedis, disconnectRedis } from './config/redis'
 
+const DEFAULT_LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:3100']
+
 const allowedOrigins = (() => {
-  const origins = (process.env.CORS_ALLOWED_ORIGINS ?? '*')
+  const raw = process.env.CORS_ALLOWED_ORIGINS?.trim()
+  if (!raw) {
+    return [...DEFAULT_LOCAL_ORIGINS]
+  }
+
+  const origins = raw
     .split(',')
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0)
-  return origins.length > 0 ? origins : ['*']
+
+  if (origins.includes('*')) {
+    return ['*']
+  }
+
+  const unique = new Set(origins)
+  DEFAULT_LOCAL_ORIGINS.forEach((origin) => {
+    if (origin) {
+      unique.add(origin)
+    }
+  })
+
+  return Array.from(unique)
 })()
 
 const allowAnyOrigin = allowedOrigins.includes('*')
@@ -74,6 +94,7 @@ export const startServer = async () => {
       addressResolver,
       paymentResolver,
       customerSupportResolver,
+      cmsResolver,
     ],
   })
 

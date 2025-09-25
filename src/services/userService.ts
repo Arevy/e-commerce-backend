@@ -110,14 +110,14 @@ export const UserService = {
   register: async (email: string, password: string, name?: string) => {
     const conn = await getConnectionFromPool()
     try {
-      // 1) verifică duplicat
+      // 1) check for duplicate
       const dup = await conn.execute(
         `SELECT 1 FROM USERS WHERE EMAIL = :email`,
         { email },
       )
       if (dup.rows.length) throw new Error('Email already registered')
 
-      // 2) hash și insert
+      // 2) hash and insert
       const hash = await bcrypt.hash(password, 10)
       const result = await conn.execute(
         `INSERT INTO USERS (EMAIL, PASSWORD, NAME, ROLE)

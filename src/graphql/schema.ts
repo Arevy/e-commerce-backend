@@ -136,6 +136,37 @@ export const typeDefs = /* GraphQL */ `
     createdAt: String!
   }
 
+  ############
+  #   CMS    #
+  ############
+
+  enum CmsStatus {
+    DRAFT
+    PUBLISHED
+    ARCHIVED
+  }
+
+  type CmsPage {
+    id: ID!
+    slug: String!
+    title: String!
+    excerpt: String
+    body: String!
+    status: CmsStatus!
+    publishedAt: String
+    updatedAt: String!
+    createdAt: String!
+  }
+
+  input CmsPageInput {
+    slug: String!
+    title: String!
+    excerpt: String
+    body: String!
+    status: CmsStatus
+    publishedAt: String
+  }
+
   #############
   # InputTypes#
   #############
@@ -163,6 +194,8 @@ export const typeDefs = /* GraphQL */ `
     getReviews(productId: ID!): [Review!]!
     getAddresses(userId: ID!): [Address!]!
     getPayment(paymentId: ID!): Payment
+    getCmsPages(status: CmsStatus, search: String): [CmsPage!]!
+    getCmsPage(slug: String!): CmsPage
 
     customerSupport: CustomerSupportQuery!
   }
@@ -247,6 +280,12 @@ export const typeDefs = /* GraphQL */ `
     updatePaymentStatus(paymentId: ID!, status: String!): Payment!
     deletePayment(paymentId: ID!): Boolean!
 
+    # CMS
+    createCmsPage(input: CmsPageInput!): CmsPage!
+    updateCmsPage(id: ID!, input: CmsPageInput!): CmsPage!
+    deleteCmsPage(id: ID!): Boolean!
+    publishCmsPage(id: ID!): CmsPage!
+
     customerSupport: CustomerSupportMutation!
   }
 
@@ -283,6 +322,9 @@ export const typeDefs = /* GraphQL */ `
 
     reviews(productId: ID, userId: ID): [Review!]!
     review(id: ID!): Review
+
+    cmsPages(status: CmsStatus, search: String): [CmsPage!]!
+    cmsPage(id: ID, slug: String): CmsPage
   }
 
   type CustomerSupportMutation {
@@ -363,5 +405,10 @@ export const typeDefs = /* GraphQL */ `
 
     addToWishlist(userId: ID!, productId: ID!): Wishlist!
     removeFromWishlist(userId: ID!, productId: ID!): Wishlist!
+
+    createCmsPage(input: CmsPageInput!): CmsPage!
+    updateCmsPage(id: ID!, input: CmsPageInput!): CmsPage!
+    publishCmsPage(id: ID!): CmsPage!
+    deleteCmsPage(id: ID!): Boolean!
   }
 `

@@ -51,7 +51,7 @@ functional needs for the e-commerce backend.
 - Add caching/invalidations for catalog queries and product detail pages beyond cart/wishlist usage (`src/services/productService.ts:21`).
 - Implement background jobs for tasks such as cart expiration, email notifications, and report generation (`src/server.ts:31`).
 - Provide database migrations and seeding tooling to evolve the schema safely (`sql_script.txt:1`).
-- Containerize and script local environments (Oracle, Redis, API) for consistent onboarding (`README.md:18`).
+- Automate local Oracle provisioning (container or scripted install) so onboarding no longer requires manual database/Instant Client setup (`README.md:13`).
 
 ## Quality & Testing
 - Introduce automated unit/integration tests for services and resolvers (currently absent from `package.json:7`).

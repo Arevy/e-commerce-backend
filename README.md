@@ -172,4 +172,7 @@ curl -X POST http://localhost:4000/graphql \
 
 ## Docker
 
-In the root of the project you will find a multi-stage `Dockerfile` and a `backend` service in `docker-compose.yml`. The image sets `npm_config_oracle_skip_postinstall=1` to avoid Oracle driver failures when the instant client libraries are not available; make sure to publish the `ORACLE_*` variables and mount the required libraries before running in production.
+- The provided multi-stage `Dockerfile` builds a production-ready image, installing `libaio1` and configuring `/opt/oracle/instantclient` so the Instant Client libraries are discoverable at runtime. It keeps `npm_config_oracle_skip_postinstall=1` to bypass the Oracle driver's postinstall script inside CI/build environments.
+- When using the monorepo-level `docker-compose.yml`, create an `oracle-client/` directory alongside that file and extract the Oracle Instant Client (Basic or Basic Lite) into it. Compose mounts the folder read-only into `/opt/oracle/instantclient` and publishes a `host.docker.internal` entry so the container can resolve your Oracle host across macOS, Windows, and Linux.
+- Before starting the container, provide `ORACLE_USER`, `ORACLE_PASSWORD`, and (optionally) `ORACLE_CONNECT_STRING` via environment variables or a `.env` file so the API can authenticate against the database. `CORS_ALLOWED_ORIGINS` should include the admin portal (`http://localhost:3000`) and storefront (`http://localhost:3100`).
+- Build and run the service with `docker compose up --build backend` from the repository root, or `docker compose up --build` to start the entire stack (Redis, backend, storefront, admin portal).

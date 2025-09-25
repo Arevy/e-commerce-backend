@@ -33,13 +33,53 @@ export const UserService = {
         (where.length ? ` WHERE ${where.join(' AND ')}` : '') +
         ' ORDER BY ID'
 
-      const result = await conn.execute(query, params)
-      return (result.rows || []).map((r: any[]) => ({
-        id: r[0],
-        email: r[1],
-        name: r[2],
-        role: r[3],
-      }))
+      try {
+        const result = await conn.execute(query, params)
+        return (result.rows || []).map((r: any[]) => ({
+          id: r[0],
+          email: r[1],
+          name: r[2],
+          role: r[3],
+        }))
+      } catch (err) {
+        const missingRoleColumn =
+          err instanceof Error &&
+          err.message.includes('ORA-00904') &&
+          err.message.toUpperCase().includes('ROLE')
+
+        if (!missingRoleColumn) {
+          throw err
+        }
+
+        logger.warn(
+          'ROLE column not found in USERS table. Falling back to default role values.',
+        )
+
+        const fallbackWhere: string[] = []
+        const fallbackParams: Record<string, unknown> = {}
+
+        if (filters?.email) {
+          fallbackWhere.push('LOWER(EMAIL) LIKE :email')
+          fallbackParams.email = `%${filters.email.toLowerCase()}%`
+        }
+
+        if (filters?.role) {
+          logger.warn('Ignoring role filter because USERS.ROLE column is missing.')
+        }
+
+        const fallbackQuery =
+          'SELECT ID, EMAIL, NAME FROM USERS' +
+          (fallbackWhere.length ? ` WHERE ${fallbackWhere.join(' AND ')}` : '') +
+          ' ORDER BY ID'
+
+        const fallbackResult = await conn.execute(fallbackQuery, fallbackParams)
+        return (fallbackResult.rows || []).map((r: any[]) => ({
+          id: r[0],
+          email: r[1],
+          name: r[2],
+          role: 'CUSTOMER' as UserRole,
+        }))
+      }
     } finally {
       await conn.close()
     }

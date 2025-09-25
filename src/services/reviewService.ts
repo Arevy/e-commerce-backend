@@ -2,6 +2,10 @@
 import oracledb from 'oracledb'
 import { getConnectionFromPool } from '../config/database'
 import { Review } from '../models/review'
+import { logger } from '../utils/logger'
+
+const isMissingTableError = (err: unknown) =>
+  err instanceof Error && err.message.includes('ORA-00942')
 
 const mapReviewRow = (row: any[]): Review => ({
   id: row[0],
@@ -29,6 +33,12 @@ const fetchReviewById = async (reviewId: number) => {
       return null
     }
     return mapReviewRow(res.rows[0] as any[])
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      logger.warn('REVIEWS table not found when fetching review by id.')
+      return null
+    }
+    throw err
   } finally {
     await conn.close()
   }
@@ -69,6 +79,12 @@ export const ReviewService = {
 
       const res = await conn.execute(query, params)
       return (res.rows || []).map((row: any[]) => mapReviewRow(row))
+    } catch (err) {
+      if (isMissingTableError(err)) {
+        logger.warn('REVIEWS table not found. Returning empty review list.')
+        return []
+      }
+      throw err
     } finally {
       await conn.close()
     }
@@ -90,6 +106,12 @@ export const ReviewService = {
         { pid: productId },
       )
       return (res.rows || []).map((row: any[]) => mapReviewRow(row))
+    } catch (err) {
+      if (isMissingTableError(err)) {
+        logger.warn('REVIEWS table not found when fetching reviews by product.')
+        return []
+      }
+      throw err
     } finally {
       await conn.close()
     }

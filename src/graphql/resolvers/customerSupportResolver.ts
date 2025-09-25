@@ -10,6 +10,19 @@ import { ReviewService } from '../../services/reviewService'
 import { validateInput } from '../../utils/validateInput'
 import { UserRole } from '../../models/user'
 
+const toOptionalNumber = (value?: string | null) => {
+  if (value === null || value === undefined) {
+    return undefined
+  }
+
+  const parsed = Number(value)
+  if (Number.isNaN(parsed)) {
+    return undefined
+  }
+
+  return parsed
+}
+
 export const customerSupportResolver = {
   Query: {
     customerSupport: () => ({}),
@@ -20,38 +33,43 @@ export const customerSupportResolver = {
   },
 
   CustomerSupportQuery: {
-    users: (
-      _: unknown,
-      args: { email?: string; role?: UserRole },
-    ) => UserService.getAll(args),
+    users: (_: unknown, args: { email?: string; role?: UserRole }) =>
+      UserService.getAll(args),
 
     user: (_: unknown, { id }: { id: string }) =>
-      UserService.getById(Number(id)),
+      UserService.getById(toOptionalNumber(id) ?? 0),
 
-    products: (_: unknown, args: {
-      limit?: number
-      offset?: number
-      name?: string
-      categoryId?: string
-    }) =>
+    products: (
+      _: unknown,
+      args: {
+        limit?: number
+        offset?: number
+        name?: string
+        categoryId?: string
+      },
+    ) =>
       ProductService.getAll(
         args.limit,
         args.offset,
-        args.name,
-        args.categoryId ? Number(args.categoryId) : undefined,
+        args.name?.trim() || undefined,
+        toOptionalNumber(args.categoryId ?? undefined),
       ),
 
     product: (_: unknown, { id }: { id: string }) =>
-      ProductService.getById(Number(id)),
+      ProductService.getById(toOptionalNumber(id) ?? 0),
 
-    categories: (_: unknown, args: {
-      limit?: number
-      offset?: number
-      name?: string
-    }) => CategoryService.getAll(args.limit, args.offset, args.name),
+    categories: (
+      _: unknown,
+      args: { limit?: number; offset?: number; name?: string },
+    ) =>
+      CategoryService.getAll(
+        args.limit,
+        args.offset,
+        args.name?.trim() || undefined,
+      ),
 
     category: (_: unknown, { id }: { id: string }) =>
-      CategoryService.getById(Number(id)),
+      CategoryService.getById(toOptionalNumber(id) ?? 0),
 
     orders: (
       _: unknown,
@@ -63,47 +81,44 @@ export const customerSupportResolver = {
       },
     ) =>
       OrderService.getAll({
-        userId: args.userId ? Number(args.userId) : undefined,
-        status: args.status,
+        userId: toOptionalNumber(args.userId ?? undefined),
+        status: args.status?.trim().toUpperCase() || undefined,
         limit: args.limit,
         offset: args.offset,
       }),
 
     order: (_: unknown, { id }: { id: string }) =>
-      OrderService.getById(Number(id)),
+      OrderService.getById(toOptionalNumber(id) ?? 0),
 
     addresses: (_: unknown, args: { userId?: string }) =>
-      AddressService.getAll(args.userId ? Number(args.userId) : undefined),
+      AddressService.getAll(toOptionalNumber(args.userId ?? undefined)),
 
     address: (_: unknown, { id }: { id: string }) =>
-      AddressService.getById(Number(id)),
+      AddressService.getById(toOptionalNumber(id) ?? 0),
 
     payments: (_: unknown, args: { orderId?: string; status?: string }) =>
       PaymentService.getAll({
-        orderId: args.orderId ? Number(args.orderId) : undefined,
-        status: args.status,
+        orderId: toOptionalNumber(args.orderId ?? undefined),
+        status: args.status?.trim() || undefined,
       }),
 
     payment: (_: unknown, { id }: { id: string }) =>
-      PaymentService.getById(Number(id)),
+      PaymentService.getById(toOptionalNumber(id) ?? 0),
 
     cart: (_: unknown, { userId }: { userId: string }) =>
-      CartService.getCart(Number(userId)),
+      CartService.getCart(toOptionalNumber(userId) ?? 0),
 
     wishlist: (_: unknown, { userId }: { userId: string }) =>
-      WishlistService.getWishlist(Number(userId)),
+      WishlistService.getWishlist(toOptionalNumber(userId) ?? 0),
 
-    reviews: (
-      _: unknown,
-      args: { productId?: string; userId?: string },
-    ) =>
+    reviews: (_: unknown, args: { productId?: string; userId?: string }) =>
       ReviewService.getAll({
-        productId: args.productId ? Number(args.productId) : undefined,
-        userId: args.userId ? Number(args.userId) : undefined,
+        productId: toOptionalNumber(args.productId ?? undefined),
+        userId: toOptionalNumber(args.userId ?? undefined),
       }),
 
     review: (_: unknown, { id }: { id: string }) =>
-      ReviewService.getById(Number(id)),
+      ReviewService.getById(toOptionalNumber(id) ?? 0),
   },
 
   CustomerSupportMutation: {
@@ -135,7 +150,7 @@ export const customerSupportResolver = {
       },
     ) => {
       validateInput(args, { id: { required: true, type: 'string' } })
-      return UserService.update(Number(args.id), {
+      return UserService.update(toOptionalNumber(args.id) ?? 0, {
         email: args.email,
         name: args.name,
         role: args.role,
@@ -144,7 +159,7 @@ export const customerSupportResolver = {
     },
 
     deleteUser: (_: unknown, { id }: { id: string }) =>
-      UserService.remove(Number(id)),
+      UserService.remove(toOptionalNumber(id) ?? 0),
 
     addProduct: (
       _: unknown,
@@ -164,7 +179,7 @@ export const customerSupportResolver = {
         args.name,
         args.price,
         args.description,
-        Number(args.categoryId),
+        toOptionalNumber(args.categoryId) ?? 0,
       )
     },
 
@@ -180,21 +195,18 @@ export const customerSupportResolver = {
     ) => {
       validateInput(args, { id: { required: true, type: 'string' } })
       return ProductService.update(
-        Number(args.id),
+        toOptionalNumber(args.id) ?? 0,
         args.name,
         args.price,
         args.description,
-        args.categoryId !== undefined ? Number(args.categoryId) : undefined,
+        toOptionalNumber(args.categoryId ?? undefined),
       )
     },
 
     deleteProduct: (_: unknown, { id }: { id: string }) =>
-      ProductService.delete(Number(id)),
+      ProductService.delete(toOptionalNumber(id) ?? 0),
 
-    addCategory: (
-      _: unknown,
-      args: { name: string; description?: string },
-    ) => {
+    addCategory: (_: unknown, args: { name: string; description?: string }) => {
       validateInput(args, { name: { required: true, type: 'string' } })
       return CategoryService.add(args.name, args.description)
     },
@@ -205,23 +217,26 @@ export const customerSupportResolver = {
     ) => {
       validateInput(args, { id: { required: true, type: 'string' } })
       return CategoryService.update(
-        Number(args.id),
+        toOptionalNumber(args.id) ?? 0,
         args.name,
         args.description,
       )
     },
 
     deleteCategory: (_: unknown, { id }: { id: string }) =>
-      CategoryService.delete(Number(id)),
+      CategoryService.delete(toOptionalNumber(id) ?? 0),
 
-    createOrder: (_: unknown, args: {
-      userId: string
-      products: Array<{ productId: string; quantity: number; price: number }>
-    }) =>
+    createOrder: (
+      _: unknown,
+      args: {
+        userId: string
+        products: Array<{ productId: string; quantity: number; price: number }>
+      },
+    ) =>
       OrderService.create(
-        Number(args.userId),
+        toOptionalNumber(args.userId) ?? 0,
         args.products.map((item) => ({
-          productId: Number(item.productId),
+          productId: toOptionalNumber(item.productId) ?? 0,
           quantity: item.quantity,
           price: item.price,
         })),
@@ -230,10 +245,14 @@ export const customerSupportResolver = {
     updateOrderStatus: (
       _: unknown,
       args: { orderId: string; status: string },
-    ) => OrderService.updateStatus(Number(args.orderId), args.status),
+    ) =>
+      OrderService.updateStatus(
+        toOptionalNumber(args.orderId) ?? 0,
+        args.status,
+      ),
 
     deleteOrder: (_: unknown, { orderId }: { orderId: string }) =>
-      OrderService.delete(Number(orderId)),
+      OrderService.delete(toOptionalNumber(orderId) ?? 0),
 
     addAddress: (
       _: unknown,
@@ -253,7 +272,7 @@ export const customerSupportResolver = {
         country: { required: true, type: 'string' },
       })
       return AddressService.add(
-        Number(args.userId),
+        toOptionalNumber(args.userId) ?? 0,
         args.street,
         args.city,
         args.postalCode,
@@ -275,7 +294,7 @@ export const customerSupportResolver = {
         addressId: { required: true, type: 'string' },
       })
       return AddressService.update(
-        Number(args.addressId),
+        toOptionalNumber(args.addressId) ?? 0,
         args.street,
         args.city,
         args.postalCode,
@@ -284,7 +303,7 @@ export const customerSupportResolver = {
     },
 
     deleteAddress: (_: unknown, { addressId }: { addressId: string }) =>
-      AddressService.delete(Number(addressId)),
+      AddressService.delete(toOptionalNumber(addressId) ?? 0),
 
     createPayment: (
       _: unknown,
@@ -296,7 +315,7 @@ export const customerSupportResolver = {
         method: { required: true, type: 'string' },
       })
       return PaymentService.create(
-        Number(args.orderId),
+        toOptionalNumber(args.orderId) ?? 0,
         args.amount,
         args.method,
       )
@@ -305,10 +324,14 @@ export const customerSupportResolver = {
     updatePaymentStatus: (
       _: unknown,
       args: { paymentId: string; status: string },
-    ) => PaymentService.updateStatus(Number(args.paymentId), args.status),
+    ) =>
+      PaymentService.updateStatus(
+        toOptionalNumber(args.paymentId) ?? 0,
+        args.status,
+      ),
 
     deletePayment: (_: unknown, { paymentId }: { paymentId: string }) =>
-      PaymentService.remove(Number(paymentId)),
+      PaymentService.remove(toOptionalNumber(paymentId) ?? 0),
 
     addReview: (
       _: unknown,
@@ -325,8 +348,8 @@ export const customerSupportResolver = {
         rating: { required: true, type: 'number' },
       })
       return ReviewService.add(
-        Number(args.productId),
-        Number(args.userId),
+        toOptionalNumber(args.productId) ?? 0,
+        toOptionalNumber(args.userId) ?? 0,
         args.rating,
         args.reviewText,
       )
@@ -338,14 +361,14 @@ export const customerSupportResolver = {
     ) => {
       validateInput(args, { reviewId: { required: true, type: 'string' } })
       return ReviewService.update(
-        Number(args.reviewId),
+        toOptionalNumber(args.reviewId) ?? 0,
         args.rating,
         args.reviewText,
       )
     },
 
     deleteReview: (_: unknown, { reviewId }: { reviewId: string }) =>
-      ReviewService.delete(Number(reviewId)),
+      ReviewService.delete(toOptionalNumber(reviewId) ?? 0),
 
     addToCart: (
       _: unknown,
@@ -360,8 +383,8 @@ export const customerSupportResolver = {
         quantity: { required: true, type: 'number' },
       })
       return CartService.addToCart(
-        Number(args.userId),
-        Number(args.item.productId),
+        toOptionalNumber(args.userId) ?? 0,
+        toOptionalNumber(args.item.productId) ?? 0,
         args.item.quantity,
       )
     },
@@ -375,14 +398,14 @@ export const customerSupportResolver = {
         productId: { required: true, type: 'string' },
       })
       return CartService.removeFromCart(
-        Number(args.userId),
-        Number(args.productId),
+        toOptionalNumber(args.userId) ?? 0,
+        toOptionalNumber(args.productId) ?? 0,
       )
     },
 
     clearCart: (_: unknown, { userId }: { userId: string }) => {
       validateInput({ userId }, { userId: { required: true, type: 'string' } })
-      return CartService.clearCart(Number(userId))
+      return CartService.clearCart(toOptionalNumber(userId) ?? 0)
     },
 
     addToWishlist: (
@@ -394,8 +417,8 @@ export const customerSupportResolver = {
         productId: { required: true, type: 'string' },
       })
       return WishlistService.addToWishlist(
-        Number(args.userId),
-        Number(args.productId),
+        toOptionalNumber(args.userId) ?? 0,
+        toOptionalNumber(args.productId) ?? 0,
       )
     },
 
@@ -408,8 +431,8 @@ export const customerSupportResolver = {
         productId: { required: true, type: 'string' },
       })
       return WishlistService.removeFromWishlist(
-        Number(args.userId),
-        Number(args.productId),
+        toOptionalNumber(args.userId) ?? 0,
+        toOptionalNumber(args.productId) ?? 0,
       )
     },
   },

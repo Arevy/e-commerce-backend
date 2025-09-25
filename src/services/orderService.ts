@@ -88,29 +88,42 @@ const attachItems = async (
     {},
   )
 
-  const itemsRes = await conn.execute(
-    `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE
-       FROM ORDER_ITEMS
-      WHERE ORDER_ID IN (${placeholders})`,
-    params,
-  )
-  const items = (itemsRes.rows || []).map((row: any[]) => mapOrderItemRow(row))
+  try {
+    const itemsRes = await conn.execute(
+      `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE
+         FROM ORDER_ITEMS
+        WHERE ORDER_ID IN (${placeholders})`,
+      params,
+    )
+    const items = (itemsRes.rows || []).map((row: any[]) => mapOrderItemRow(row))
 
-  const itemsByOrder = items.reduce<Record<number, OrderItemRow[]>>(
-    (acc: Record<number, OrderItemRow[]>, item: OrderItemRow) => {
-      if (!acc[item.orderId]) {
-        acc[item.orderId] = []
-      }
-      acc[item.orderId].push(item)
-      return acc
-    },
-    {},
-  )
+    const itemsByOrder = items.reduce<Record<number, OrderItemRow[]>>(
+      (acc: Record<number, OrderItemRow[]>, item: OrderItemRow) => {
+        if (!acc[item.orderId]) {
+          acc[item.orderId] = []
+        }
+        acc[item.orderId].push(item)
+        return acc
+      },
+      {},
+    )
 
-  return orders.map((order) => ({
-    ...order,
-    products: itemsByOrder[order.id] || [],
-  }))
+    return orders.map((order) => ({
+      ...order,
+      products: itemsByOrder[order.id] || [],
+    }))
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('ORA-00942')) {
+      logger.warn(
+        'ORDER_ITEMS table not found. Returning orders without product line items.',
+      )
+      return orders.map((order) => ({
+        ...order,
+        products: [],
+      }))
+    }
+    throw err
+  }
 }
 
 export const OrderService = {
@@ -268,6 +281,10 @@ export const OrderService = {
       const hydrated = await attachItems(conn, orders)
       return hydrated
     } catch (err) {
+      if (err instanceof Error && err.message.includes('ORA-00942')) {
+        logger.warn('ORDERS table not found. Returning empty order list for compatibility.')
+        return []
+      }
       logger.error(`Error in OrderService.getAll: ${err}`)
       throw err
     } finally {

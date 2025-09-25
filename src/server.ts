@@ -16,10 +16,42 @@ import { customerSupportResolver } from './graphql/resolvers/customerSupportReso
 import { connectToDatabase, closeDatabaseConnection } from './config/database'
 import { connectRedis, disconnectRedis } from './config/redis'
 
+const allowedOrigins = (() => {
+  const origins = (process.env.CORS_ALLOWED_ORIGINS ?? '*')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+  return origins.length > 0 ? origins : ['*']
+})()
+
+const allowAnyOrigin = allowedOrigins.includes('*')
+
 export const startServer = async () => {
   const app = express()
 
   app.use(express.json())
+
+  // Allow the admin portal to call the GraphQL API from a different origin.
+  app.use((req, res, next) => {
+    const requestOrigin = req.headers.origin
+
+    if (allowAnyOrigin) {
+      res.header('Access-Control-Allow-Origin', '*')
+    } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+      res.header('Access-Control-Allow-Origin', requestOrigin)
+    }
+
+    res.header('Vary', 'Origin')
+    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204)
+      return
+    }
+
+    next()
+  })
 
   app.use((req, res, next) => {
     logger.info(`[${new Date().toISOString()}] ${req.method} ${req.url}`)

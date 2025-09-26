@@ -5,10 +5,11 @@ verification playbook so you can exercise each resolver end-to-end. All seeded
 IDs originate from `sql_script.txt`, which rebuilds the schema from scratch on
 every run.
 
-> **Identity note**: Until context-based auth is implemented (see
-> `docs/backend-backlog.md`), mutations accept `userId` arguments directly. The
-> new `customerSupport` namespace follows the same rule. Use the seeded users
-> (including the support agent) or register fresh accounts during testing.
+> **Identity note**: Authentication now relies on HTTP-only session cookies. Most
+> customer-facing mutations still accept an explicit `userId`, but resolvers
+> validate that the `sid` cookie corresponds to the provided id. Support-only
+> operations live under the `customerSupport` namespace and require a support
+> session established via the `login` mutation.
 
 ## Seeded Dataset Snapshot
 - **Users**
@@ -64,6 +65,15 @@ mutation LoginAlice {
   }
 }
 ```
+```graphql
+mutation LogoutAlice {
+  logout
+}
+```
+
+
+`login` now sets an HTTP-only `sid` cookie. Call `logout` to invalidate the session and delete the cookie. Admin tooling can also revoke sessions in bulk; see the customer support section below.
+
 Use the returned `id` from `register` for further flows (addresses, orders, etc.).
 
 ## 2. Catalog (Categories & Products)
@@ -347,6 +357,22 @@ Use this call in the admin portal when investigating customer issues—the
 payload mirrors the shopper-facing aggregate but stays scoped to the
 `customerSupport` namespace.
 
+### Redeem Impersonation Tokens
+```graphql
+mutation RedeemImpersonation($token: String!) {
+  redeemImpersonation(token: $token) {
+    id
+    email
+    name
+    role
+  }
+}
+```
+Executing this mutation exchanges a short-lived impersonation ticket for a new
+session (setting the `sid` cookie) and returns the impersonated user profile.
+It is used by the storefront route `/impersonate?token=…` to mirror a customer
+session opened from the admin portal.
+
 ## 8. Orders
 ### Verify Query
 ```graphql
@@ -448,9 +474,9 @@ mutation DeletePayment($paymentId: ID!) {
 ## 11. Customer Support Namespace
 The `customerSupport` field exposes a grouped set of resolvers tailored for
 support agents. Every query/mutation available to shoppers is mirrored here so
-agents can audit or remediate data without juggling user-specific IDs. Because
-Auth context is still TODO, you can call the namespace directly once you have an
-API token (or while running GraphiQL locally).
+agents can audit or remediate data without juggling user-specific IDs. These
+operations now require an authenticated support session (set via the admin
+portal login); direct calls in GraphiQL work when the `sid` cookie is present.
 
 ### Read Examples
 Fetch all orders (optionally filter by `status` or `userId`) alongside support
@@ -521,6 +547,30 @@ mutation UpdateSupportFixtures($userId: ID!) {
   }
 }
 ```
+
+```graphql
+mutation RevokeCustomerSessions($userId: ID!) {
+  customerSupport {
+    logoutUserSessions(userId: $userId)
+  }
+}
+```
+
+```graphql
+mutation StartImpersonation($userId: ID!) {
+  customerSupport {
+    impersonateUser(userId: $userId) {
+      token
+      expiresAt
+    }
+  }
+}
+```
+
+Use the impersonation token to open the storefront as the customer by visiting
+`http://localhost:3100/impersonate?token=<token>` (adjust the origin in
+production). Redeeming the token issues a new session and refreshes the
+cart/wishlist context for that user.
 
 The namespace mirrors cart, wishlist, product, category, order, payment,
 address, and review mutations, so any remediation workflow that exists today can

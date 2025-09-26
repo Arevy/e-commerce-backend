@@ -1,6 +1,8 @@
 import express from 'express'
+import type { Request, Response } from 'express'
 import { graphqlHTTP } from 'express-graphql'
 import { makeExecutableSchema } from '@graphql-tools/schema'
+import type { GraphQLError } from 'graphql'
 import { typeDefs } from './graphql/schema'
 import { logger } from './utils/logger'
 import { addressResolver } from './graphql/resolvers/addressResolver'
@@ -17,6 +19,8 @@ import { cmsResolver } from './graphql/resolvers/cmsResolver'
 import { userContextResolver } from './graphql/resolvers/userContextResolver'
 import { connectToDatabase, closeDatabaseConnection } from './config/database'
 import { connectRedis, disconnectRedis } from './config/redis'
+import { SessionService, parseSessionCookie } from './services/sessionService'
+import type { GraphQLContext } from './graphql/context'
 
 const DEFAULT_LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:3100']
 
@@ -56,8 +60,8 @@ export const startServer = async () => {
   app.use((req, res, next) => {
     const requestOrigin = req.headers.origin
 
-    if (allowAnyOrigin) {
-      res.header('Access-Control-Allow-Origin', '*')
+    if (allowAnyOrigin && requestOrigin) {
+      res.header('Access-Control-Allow-Origin', requestOrigin)
     } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
       res.header('Access-Control-Allow-Origin', requestOrigin)
     }
@@ -65,6 +69,7 @@ export const startServer = async () => {
     res.header('Vary', 'Origin')
     res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.header('Access-Control-Allow-Credentials', 'true')
 
     if (req.method === 'OPTIONS') {
       res.sendStatus(204)
@@ -100,19 +105,42 @@ export const startServer = async () => {
     ],
   })
 
+  const buildContext = async (req: Request, res: Response): Promise<GraphQLContext> => {
+    const preferSupport = (() => {
+      const indicator = req.headers['x-shopx-support-session']
+      if (!indicator) {
+        return false
+      }
+
+      if (Array.isArray(indicator)) {
+        return indicator.some((value) => value === '1' || value?.toLowerCase() === 'true')
+      }
+
+      return indicator === '1' || indicator.toLowerCase() === 'true'
+    })()
+
+    const sessionId = parseSessionCookie(req.headers.cookie, preferSupport)
+    const session = sessionId ? await SessionService.getSession(sessionId) : null
+    return { req, res, session }
+  }
+
   app.use(
     '/graphql',
-    graphqlHTTP({
-      schema: executableSchema,
-      graphiql: true,
-      customFormatErrorFn: (error) => {
-        logger.error(`[GraphQL Error] ${error.message}`)
-        return {
-          message: error.message,
-          locations: error.locations,
-          path: error.path,
-        }
-      },
+    graphqlHTTP(async (req, res) => {
+      const context = await buildContext(req as Request, res as Response)
+      return {
+        schema: executableSchema,
+        graphiql: true,
+        context,
+        customFormatErrorFn: (error: GraphQLError) => {
+          logger.error(`[GraphQL Error] ${error.message}`)
+          return {
+            message: error.message,
+            locations: error.locations,
+            path: error.path,
+          }
+        },
+      }
     }),
   )
 

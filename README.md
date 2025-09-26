@@ -6,6 +6,8 @@ Express, connects to Oracle Database for persistence, and optionally uses Redis
 
 - Supports catalog, cart, checkout, payments, wishlists, reviews, and address
   management flows required by both customer and admin surfaces.
+- Session-based authentication with secure HTTP-only cookies (`sid`) and
+  Redis-backed session storage that now powers the store front and admin portal.
 - Exposes a `getUserContext` aggregate that hydrates cart, wishlist, addresses,
   and identity details in one call for the store front and support tools.
 - Dedicated `customerSupport` GraphQL namespace so support agents can audit and
@@ -50,6 +52,17 @@ DB_CONNECT_STRING=oracle:1521/XEPDB1
 DB_POOL_MIN=1
 DB_POOL_MAX=4
 DB_POOL_INCREMENT=1
+
+# Session management
+SESSION_COOKIE_NAME=sid
+SUPPORT_SESSION_COOKIE_NAME=support_sid
+SESSION_TTL_SECONDS=604800
+IMPERSONATION_TTL_SECONDS=60
+
+- `SESSION_COOKIE_NAME` — Shopper session cookie. Defaults to `sid`.
+- `SUPPORT_SESSION_COOKIE_NAME` — Dedicated cookie for support/admin sessions (prevents clashes with shopper cookies). Defaults to `support_sid`.
+- `SESSION_TTL_SECONDS` — TTL for sessions (in seconds). Defaults to 7 days.
+- `IMPERSONATION_TTL_SECONDS` — TTL for impersonation tickets (in seconds). Defaults to 60 seconds.
 
 # Auth
 JWT_SECRET=replace_me_with_a_real_secret
@@ -136,13 +149,14 @@ enabled in non-production environments.
 ## Redis Usage
 - The service attempts to connect to Redis on launch. When unreachable or when
   `REDIS_DISABLED=true`, a local memory map takes over caching for carts,
-  wishlists, CMS pages, and the new aggregated user-context payloads.
-- Keys follow the pattern `cart:{userId}`, `wishlist:{userId}`, and
-  `user-context:{userId}`. They are invalidated automatically after any mutation
-  that changes the underlying state.
-- TTL defaults to 60 seconds for carts, 120 seconds for wishlists, and the user
-  context reuses the wishlist TTL. Adjust in the respective services if you
-  need tighter or looser caching.
+  wishlists, CMS pages, user-context payloads, and sessions.
+- Keys follow the pattern `cart:{userId}`, `wishlist:{userId}`,
+  `user-context:{userId}`, and `session:{sessionId}` (with `session-user:{userId}`
+  for quick lookups). They are invalidated automatically after mutations,
+  session revocations, or logout.
+- TTL defaults to 60 seconds for carts, 120 seconds for wishlists, and
+  `SESSION_TTL_SECONDS` (default 7 days) for authenticated sessions. Adjust the
+  respective services if you need tighter or looser caching.
 
 ## Database Footprint
 The schema provisions:

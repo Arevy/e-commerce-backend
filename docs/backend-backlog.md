@@ -4,9 +4,9 @@ This document tracks the outstanding work required to cover customer- and admin-
 functional needs for the e-commerce backend.
 
 ## Security & Identity
-- Enforce JWT validation per request: resolvers currently trust `userId` arguments instead of deriving the identity from the request context (`src/server.ts:47`, `src/graphql/resolvers/cartResolver.ts:6`).
-- Introduce role-based access control so that admin-only mutations (catalog, order management) are gated (`sql_script.txt:24` defines `USERS` without a role column; `src/graphql/schema.ts:164` exposes admin mutations to any caller).
-- Add refresh tokens, password reset, and email verification flows to harden authentication (`src/services/userService.ts:36`).
+- Expand session management beyond single-factor login: support device/session listings, rotation, and optional refresh tokens tied to the Redis store (`src/services/sessionService.ts`).
+- Extend role-based access control so merchandising/marketing roles have tailored scopes beyond the current customer/support split (`src/graphql/schema.ts:164`).
+- Add password reset, email verification, and account recovery flows to harden authentication (`src/services/userService.ts:36`).
 - Provide auditing and login attempt throttling to mitigate brute-force attacks (`src/services/userService.ts:42`).
 
 ## Catalog & Product Experience

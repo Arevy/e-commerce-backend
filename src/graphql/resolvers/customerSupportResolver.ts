@@ -10,6 +10,8 @@ import { ReviewService } from '../../services/reviewService'
 import { UserContextService } from '../../services/userContextService'
 import { validateInput } from '../../utils/validateInput'
 import { UserRole } from '../../models/user'
+import { SessionService } from '../../services/sessionService'
+import type { GraphQLContext } from '../context'
 
 const toOptionalNumber = (value?: string | null) => {
   if (value === null || value === undefined) {
@@ -24,13 +26,27 @@ const toOptionalNumber = (value?: string | null) => {
   return parsed
 }
 
+const ensureSupportSession = (context: GraphQLContext) => {
+  const session = context.session
+  if (!session || session.role !== 'SUPPORT') {
+    throw new Error('Support authentication required.')
+  }
+  return session
+}
+
 export const customerSupportResolver = {
   Query: {
-    customerSupport: () => ({}),
+    customerSupport: (_: unknown, __: unknown, context: GraphQLContext) => {
+      ensureSupportSession(context)
+      return {}
+    },
   },
 
   Mutation: {
-    customerSupport: () => ({}),
+    customerSupport: (_: unknown, __: unknown, context: GraphQLContext) => {
+      ensureSupportSession(context)
+      return {}
+    },
   },
 
   CustomerSupportQuery: {
@@ -134,7 +150,9 @@ export const customerSupportResolver = {
         name?: string
         role: UserRole
       },
+      context: GraphQLContext,
     ) => {
+      ensureSupportSession(context)
       validateInput(args, {
         email: { required: true, type: 'string' },
         password: { required: true, type: 'string' },
@@ -152,7 +170,9 @@ export const customerSupportResolver = {
         role?: UserRole
         password?: string
       },
+      context: GraphQLContext,
     ) => {
+      ensureSupportSession(context)
       validateInput(args, { id: { required: true, type: 'string' } })
       return UserService.update(toOptionalNumber(args.id) ?? 0, {
         email: args.email,
@@ -162,8 +182,44 @@ export const customerSupportResolver = {
       })
     },
 
-    deleteUser: (_: unknown, { id }: { id: string }) =>
-      UserService.remove(toOptionalNumber(id) ?? 0),
+    deleteUser: (_: unknown, { id }: { id: string }, context: GraphQLContext) => {
+      ensureSupportSession(context)
+      return UserService.remove(toOptionalNumber(id) ?? 0)
+    },
+
+    logoutUserSessions: async (
+      _: unknown,
+      { userId }: { userId: string },
+      context: GraphQLContext,
+    ) => {
+      ensureSupportSession(context)
+      const target = toOptionalNumber(userId)
+      if (!target) {
+        throw new Error('A valid user id is required to revoke sessions.')
+      }
+      await SessionService.invalidateSessionsForUser(target)
+      await UserContextService.invalidateContext(target)
+      return true
+    },
+
+    impersonateUser: async (
+      _: unknown,
+      { userId }: { userId: string },
+      context: GraphQLContext,
+    ) => {
+      const supportSession = ensureSupportSession(context)
+      const targetId = toOptionalNumber(userId)
+      if (!targetId) {
+        throw new Error('A valid user id is required to impersonate.')
+      }
+
+      const target = await UserService.getById(targetId)
+      if (!target) {
+        throw new Error(`User ${targetId} not found`)
+      }
+
+      return SessionService.createImpersonationTicket(supportSession, target.id)
+    },
 
     addProduct: (
       _: unknown,
@@ -173,7 +229,9 @@ export const customerSupportResolver = {
         description?: string
         categoryId: string
       },
+      context: GraphQLContext,
     ) => {
+      ensureSupportSession(context)
       validateInput(args, {
         name: { required: true, type: 'string' },
         price: { required: true, type: 'number' },
@@ -196,7 +254,9 @@ export const customerSupportResolver = {
         description?: string
         categoryId?: string
       },
+      context: GraphQLContext,
     ) => {
+      ensureSupportSession(context)
       validateInput(args, { id: { required: true, type: 'string' } })
       return ProductService.update(
         toOptionalNumber(args.id) ?? 0,

@@ -104,6 +104,11 @@ export const typeDefs = /* GraphQL */ `
     addresses: [Address!]!
   }
 
+  type ImpersonationTicket {
+    token: String!
+    expiresAt: String!
+  }
+
   ###########
   # Review  #
   ###########
@@ -237,6 +242,8 @@ export const typeDefs = /* GraphQL */ `
     # Auth / Users
     register(email: String!, password: String!, name: String): User!
     login(email: String!, password: String!): AuthPayload!
+    logout: Boolean!
+    redeemImpersonation(token: String!): User!
 
     # Orders
     createOrder(userId: ID!, products: [OrderProductInput!]!): Order!
@@ -351,6 +358,8 @@ export const typeDefs = /* GraphQL */ `
       password: String
     ): User!
     deleteUser(id: ID!): Boolean!
+    logoutUserSessions(userId: ID!): Boolean!
+    impersonateUser(userId: ID!): ImpersonationTicket!
 
     addProduct(
       name: String!

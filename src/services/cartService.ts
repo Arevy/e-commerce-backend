@@ -13,6 +13,9 @@ const mapCartItemRow = (row: any[]): CartItem => ({
     price: row[3],
     description: row[4],
     categoryId: row[5],
+    imageFilename: row[6],
+    imageMimeType: row[7],
+    imageUpdatedAt: row[8] instanceof Date ? row[8].toISOString() : row[8],
   },
   quantity: row[1],
 })
@@ -42,7 +45,10 @@ export const CartService = {
                 p.NAME,
                 p.PRICE,
                 p.DESCRIPTION,
-                p.CATEGORY_ID
+                p.CATEGORY_ID,
+                p.IMAGE_FILENAME,
+                p.IMAGE_MIME_TYPE,
+                p.IMAGE_UPDATED_AT
            FROM CART_ITEMS ci
            JOIN PRODUCTS p ON p.ID = ci.PRODUCT_ID
           WHERE ci.USER_ID = :userId`,

@@ -1,6 +1,7 @@
 import { CartService } from '../../services/cartService'
 import type { GraphQLContext } from '../context'
 import { ensureSessionMatchesUser } from '../utils/auth'
+import { resolveProductImage } from './shared/productImage'
 
 export const cartResolver = {
   Query: {
@@ -9,6 +10,10 @@ export const cartResolver = {
       ensureSessionMatchesUser(context, numericId)
       return CartService.getCart(numericId)
     },
+  },
+  CartProduct: {
+    image: (product: any, _: unknown, context: GraphQLContext) =>
+      resolveProductImage(product, context),
   },
   Mutation: {
     addToCart: (

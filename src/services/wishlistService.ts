@@ -12,6 +12,9 @@ const mapWishlistProduct = (row: any[]) => ({
   price: row[2],
   description: row[3],
   categoryId: row[4],
+  imageFilename: row[5],
+  imageMimeType: row[6],
+  imageUpdatedAt: row[7] instanceof Date ? row[7].toISOString() : row[7],
 })
 
 export const WishlistService = {
@@ -29,7 +32,10 @@ export const WishlistService = {
                 p.NAME,
                 p.PRICE,
                 p.DESCRIPTION,
-                p.CATEGORY_ID
+                p.CATEGORY_ID,
+                p.IMAGE_FILENAME,
+                p.IMAGE_MIME_TYPE,
+                p.IMAGE_UPDATED_AT
            FROM WISHLIST w
            JOIN PRODUCTS p ON p.ID = w.PRODUCT_ID
           WHERE w.USER_ID = :userId`,

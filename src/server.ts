@@ -20,6 +20,7 @@ import { userContextResolver } from './graphql/resolvers/userContextResolver'
 import { connectToDatabase, closeDatabaseConnection } from './config/database'
 import { connectRedis, disconnectRedis } from './config/redis'
 import { SessionService, parseSessionCookie } from './services/sessionService'
+import { ProductService } from './services/productService'
 import type { GraphQLContext } from './graphql/context'
 
 const DEFAULT_LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:3100']
@@ -54,7 +55,8 @@ const allowAnyOrigin = allowedOrigins.includes('*')
 export const startServer = async () => {
   const app = express()
 
-  app.use(express.json())
+  const jsonBodyLimit = process.env.JSON_BODY_LIMIT || '5mb'
+  app.use(express.json({ limit: jsonBodyLimit }))
 
   // Allow the admin portal to call the GraphQL API from a different origin.
   app.use((req, res, next) => {
@@ -86,6 +88,34 @@ export const startServer = async () => {
 
   await connectToDatabase()
   await connectRedis()
+
+  app.get('/products/:id/image', async (req, res) => {
+    const productId = Number(req.params.id)
+    if (!Number.isFinite(productId) || productId <= 0) {
+      res.status(400).send('Invalid product id')
+      return
+    }
+
+    try {
+      const image = await ProductService.getImageContent(productId)
+      if (!image) {
+        res.status(404).send('Image not found')
+        return
+      }
+
+      res.setHeader('Content-Type', image.mimeType)
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="${encodeURIComponent(image.filename)}"`,
+      )
+      res.setHeader('Cache-Control', 'public, max-age=900, must-revalidate')
+      res.setHeader('Content-Length', String(image.data.length))
+      res.send(image.data)
+    } catch (error) {
+      logger.error(`Error serving product image ${productId}: ${error}`)
+      res.sendStatus(500)
+    }
+  })
 
   const executableSchema = makeExecutableSchema({
     typeDefs,

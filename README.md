@@ -12,6 +12,9 @@ Express, connects to Oracle Database for persistence, and optionally uses Redis
   and identity details in one call for the store front and support tools.
 - Dedicated `customerSupport` GraphQL namespace so support agents can audit and
   mutate every domain object without switching schemas.
+- Native product image storage with an Oracle BLOB column, upload mutations, and
+  a streaming `/products/:id/image` endpoint so both storefront and admin UIs keep
+  previews in sync.
 - Ships with SQL bootstrap + seed data so every resolver can be exercised out of
   the box.
 - JWT-based authentication with sample test accounts for quick manual testing.
@@ -77,7 +80,15 @@ REDIS_DISABLED=false
 
 # App
 PORT=4000
+PUBLIC_ASSET_BASE_URL=http://localhost:4000
+JSON_BODY_LIMIT=5mb
 ```
+
+- `PUBLIC_ASSET_BASE_URL` — Optional absolute origin used when building product
+  image URLs. When omitted, the server derives the base URL from the incoming
+  request.
+- `JSON_BODY_LIMIT` — Maximum body size accepted by `express.json()`. Increase
+  this when sending larger base64-encoded images. Defaults to `5mb`.
 
 ## Oracle Setup
 
@@ -86,7 +97,13 @@ PORT=4000
 2. Wait for the container to report healthy (`docker compose ps`).
 3. Seed the schema with `./scripts/seed-oracle.sh` from the repository root. The
    script pipes `sql_script.txt` into `sqlplus`, rebuilding the schema and
-   sample data end-to-end.
+   sample data end-to-end. It automatically reuses `DB_USER` / `DB_PASSWORD`
+   from `e-commerce-backend/.env` (or you can override via `ORACLE_APP_USER`
+   / `ORACLE_APP_PASSWORD`).
+   The refreshed seed now provisions 11 categories, 30+ products, a dozen
+   customer accounts, and more than 20 historical orders so dashboards,
+   support tooling, and impersonation flows have realistic volume out of the
+   box.
 
 The container uses `gvenzl/oracle-xe:21-full`, exposes port `1521`, and sets the
 SYS password to `Password` by default (override via `ORACLE_SYS_PASSWORD`).
@@ -169,6 +186,21 @@ The schema provisions:
 
 Each table receives seed data aligned with the GraphQL samples documented under
 `docs/graphql-operations.md`.
+
+`PRODUCTS` now includes `IMAGE_FILENAME`, `IMAGE_MIME_TYPE`, `IMAGE_DATA`, and
+`IMAGE_UPDATED_AT` so catalog assets live alongside the rest of the record.
+
+## Product Images
+- Upload or replace an asset through `addProduct` / `updateProduct` (including
+  the `customerSupport` namespace) by passing an `image` argument with
+  `filename`, `mimeType`, and `base64Data`. The resolver accepts both raw
+  base64 strings and full data-URL payloads.
+- Remove an existing asset by calling `updateProduct` with `removeImage: true`.
+- Fetch the binary via `GET /products/:id/image`; the route streams the stored
+  BLOB with the persisted MIME type and cache headers. No authentication is
+  required so both storefront and admin clients can display thumbnails.
+- GraphQL `Product` and `CartProduct` types expose an `image` object containing
+  `url`, `filename`, `mimeType`, and `updatedAt` for rendering and cache busting.
 
 ## Exercising the GraphQL API
 A comprehensive, domain-by-domain catalogue of queries and mutations (with sample

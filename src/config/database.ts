@@ -13,6 +13,14 @@ if (Array.isArray(oracledb.fetchAsString)) {
 } else {
   oracledb.fetchAsString = [oracledb.CLOB, oracledb.NCLOB]
 }
+
+if (Array.isArray(oracledb.fetchAsBuffer)) {
+  const bufferTypes = new Set(oracledb.fetchAsBuffer)
+  bufferTypes.add(oracledb.BLOB)
+  oracledb.fetchAsBuffer = Array.from(bufferTypes)
+} else {
+  oracledb.fetchAsBuffer = [oracledb.BLOB]
+}
 let connectionPool: oracledb.Pool | null = null
 
 const isPasswordExpiredError = (error: unknown): boolean => {

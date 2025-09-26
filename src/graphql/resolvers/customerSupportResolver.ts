@@ -11,6 +11,7 @@ import { UserContextService } from '../../services/userContextService'
 import { validateInput } from '../../utils/validateInput'
 import { UserRole } from '../../models/user'
 import { SessionService } from '../../services/sessionService'
+import { buildImagePayload } from '../../utils/imageUpload'
 import type { GraphQLContext } from '../context'
 
 const toOptionalNumber = (value?: string | null) => {
@@ -228,6 +229,11 @@ export const customerSupportResolver = {
         price: number
         description?: string
         categoryId: string
+        image?: {
+          filename: string
+          mimeType: string
+          base64Data: string
+        }
       },
       context: GraphQLContext,
     ) => {
@@ -237,11 +243,13 @@ export const customerSupportResolver = {
         price: { required: true, type: 'number' },
         categoryId: { required: true, type: 'string' },
       })
+      const imagePayload = buildImagePayload(args.image)
       return ProductService.add(
         args.name,
         args.price,
         args.description,
         toOptionalNumber(args.categoryId) ?? 0,
+        imagePayload ?? undefined,
       )
     },
 
@@ -253,17 +261,29 @@ export const customerSupportResolver = {
         price?: number
         description?: string
         categoryId?: string
+        image?: {
+          filename: string
+          mimeType: string
+          base64Data: string
+        }
+        removeImage?: boolean
       },
       context: GraphQLContext,
     ) => {
       ensureSupportSession(context)
       validateInput(args, { id: { required: true, type: 'string' } })
+      if (args.image && args.removeImage) {
+        throw new Error('Cannot upload a new image and remove the existing one in the same request.')
+      }
+      const imagePayload = buildImagePayload(args.image)
       return ProductService.update(
         toOptionalNumber(args.id) ?? 0,
         args.name,
         args.price,
         args.description,
         toOptionalNumber(args.categoryId ?? undefined),
+        imagePayload,
+        args.removeImage ? true : undefined,
       )
     },
 

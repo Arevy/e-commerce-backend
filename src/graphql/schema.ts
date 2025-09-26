@@ -10,6 +10,14 @@ export const typeDefs = /* GraphQL */ `
     description: String
     categoryId: ID
     category: Category
+    image: ProductImage
+  }
+
+  type ProductImage {
+    filename: String!
+    mimeType: String!
+    url: String!
+    updatedAt: String
   }
 
   type Category {
@@ -51,6 +59,12 @@ export const typeDefs = /* GraphQL */ `
     price: Float!
   }
 
+  input ProductImageUploadInput {
+    filename: String!
+    mimeType: String!
+    base64Data: String!
+  }
+
   ####################
   # Order           #
   ####################
@@ -75,6 +89,7 @@ export const typeDefs = /* GraphQL */ `
     price: Float!
     description: String
     categoryId: ID
+    image: ProductImage
   }
 
   type CartItem {
@@ -224,6 +239,7 @@ export const typeDefs = /* GraphQL */ `
       price: Float!
       description: String
       categoryId: ID!
+      image: ProductImageUploadInput
     ): Product!
     updateProduct(
       id: ID!
@@ -231,6 +247,8 @@ export const typeDefs = /* GraphQL */ `
       price: Float
       description: String
       categoryId: ID
+      image: ProductImageUploadInput
+      removeImage: Boolean
     ): Product!
     deleteProduct(id: ID!): Boolean!
 
@@ -366,6 +384,7 @@ export const typeDefs = /* GraphQL */ `
       price: Float!
       description: String
       categoryId: ID!
+      image: ProductImageUploadInput
     ): Product!
     updateProduct(
       id: ID!
@@ -373,6 +392,8 @@ export const typeDefs = /* GraphQL */ `
       price: Float
       description: String
       categoryId: ID
+      image: ProductImageUploadInput
+      removeImage: Boolean
     ): Product!
     deleteProduct(id: ID!): Boolean!
 

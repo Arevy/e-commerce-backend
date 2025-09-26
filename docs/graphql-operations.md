@@ -93,6 +93,7 @@ query ElectronicsOnly {
     name
     price
     category { name }
+    image { url }
   }
 }
 
@@ -103,6 +104,10 @@ query ProductDetails {
     description
     price
     category { id name }
+    image {
+      url
+      mimeType
+    }
   }
 }
 ```
@@ -126,20 +131,32 @@ mutation CreateAccessory($categoryId: ID!) {
     price: 79.99
     description: "7-in-1 USB-C hub"
     categoryId: $categoryId
+    image: {
+      filename: "hub.png"
+      mimeType: "image/png"
+      base64Data: "data:image/png;base64,iVBORw0..."
+    }
   ) {
     id
     name
     price
+    image { url }
   }
 }
 ```
 
 ```graphql
 mutation UpdateAccessory($productId: ID!) {
-  updateProduct(id: $productId, price: 69.99, description: "Discounted hub") {
+  updateProduct(
+    id: $productId
+    price: 69.99
+    description: "Discounted hub"
+    removeImage: true
+  ) {
     id
     price
     description
+    image { url }
   }
 }
 
@@ -153,6 +170,11 @@ mutation DeleteAccessoriesCategory($categoryId: ID!) {
 ```
 `deleteCategory` succeeds only after the related product is removed.
 
+> **Image uploads**: The example above truncates the base64 payload for brevity.
+> Supply the full string returned by your uploader or `FileReader`. When
+> replacing an asset you may omit `removeImage`; setting it to `true` clears the
+> stored BLOB even if no new file is provided.
+
 ## 3. Cart
 ### Verify Query
 ```graphql
@@ -160,7 +182,12 @@ query AliceCart {
   getCart(userId: 1) {
     total
     items {
-      product { id name price }
+      product {
+        id
+        name
+        price
+        image { url }
+      }
       quantity
     }
   }
@@ -317,6 +344,7 @@ query AliceContext {
           id
           name
           price
+          image { url }
         }
       }
     }
@@ -325,6 +353,7 @@ query AliceContext {
         id
         name
         price
+        image { url }
       }
     }
     addresses {
@@ -346,8 +375,8 @@ query SupportUserContext {
   customerSupport {
     userContext(userId: 1) {
       user { id email role }
-      cart { total items { product { name } quantity } }
-      wishlist { products { id name } }
+      cart { total items { product { name image { url } } quantity } }
+      wishlist { products { id name image { url } } }
       addresses { id street city postalCode country }
     }
   }

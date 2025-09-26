@@ -46,6 +46,10 @@ CREATE TABLE PRODUCTS (
   PRICE        NUMBER(10, 2) NOT NULL,
   DESCRIPTION  VARCHAR2(500),
   CATEGORY_ID  NUMBER,
+  IMAGE_FILENAME VARCHAR2(255),
+  IMAGE_MIME_TYPE VARCHAR2(128),
+  IMAGE_DATA   BLOB,
+  IMAGE_UPDATED_AT TIMESTAMP,
   CONSTRAINT FK_PRODUCTS_CATEGORIES
     FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORIES (ID)
 );
@@ -165,158 +169,559 @@ COMMIT;
 
 -- Seed data ---------------------------------------------------------------
 DECLARE
-  v_cat_electronics NUMBER;
-  v_cat_books       NUMBER;
-  v_cat_clothing    NUMBER;
+  PASSWORD_HASH CONSTANT VARCHAR2(255) := '$2b$10$awPVh5HUGIuDVqCksoPBu.ads9SiTDszcT81BkJlymuKgkzAp9.J6';
 
-  v_product_laptop  NUMBER;
-  v_product_phone   NUMBER;
-  v_product_novel   NUMBER;
+  TYPE category_rec IS RECORD (
+    name VARCHAR2(255),
+    description VARCHAR2(500)
+  );
+  TYPE category_table IS TABLE OF category_rec INDEX BY PLS_INTEGER;
+  categories category_table;
 
-  v_user_alice      NUMBER;
-  v_user_bob        NUMBER;
-  v_user_support    NUMBER;
+  TYPE string_number_map IS TABLE OF NUMBER INDEX BY VARCHAR2(255);
+  category_ids string_number_map;
+  product_ids string_number_map;
+  product_prices string_number_map;
+  user_ids string_number_map;
 
-  v_page_homepage   NUMBER;
+  TYPE product_rec IS RECORD (
+    name VARCHAR2(255),
+    price NUMBER(12, 2),
+    description VARCHAR2(500),
+    category_name VARCHAR2(255)
+  );
+  TYPE product_table IS TABLE OF product_rec INDEX BY PLS_INTEGER;
+  products product_table;
 
-  v_order_alice     NUMBER;
-  v_order_bob       NUMBER;
+  TYPE user_rec IS RECORD (
+    email VARCHAR2(255),
+    password VARCHAR2(255),
+    name VARCHAR2(255),
+    role VARCHAR2(32)
+  );
+  TYPE user_table IS TABLE OF user_rec INDEX BY PLS_INTEGER;
+  users user_table;
+
+  TYPE address_rec IS RECORD (
+    user_email VARCHAR2(255),
+    street VARCHAR2(255),
+    city VARCHAR2(255),
+    postal_code VARCHAR2(20),
+    country VARCHAR2(100)
+  );
+  TYPE address_table IS TABLE OF address_rec INDEX BY PLS_INTEGER;
+  addresses address_table;
+
+  TYPE cart_rec IS RECORD (
+    user_email VARCHAR2(255),
+    product_name VARCHAR2(255),
+    quantity NUMBER
+  );
+  TYPE cart_table IS TABLE OF cart_rec INDEX BY PLS_INTEGER;
+  cart_entries cart_table;
+
+  TYPE wishlist_rec IS RECORD (
+    user_email VARCHAR2(255),
+    product_name VARCHAR2(255)
+  );
+  TYPE wishlist_table IS TABLE OF wishlist_rec INDEX BY PLS_INTEGER;
+  wishlist_entries wishlist_table;
+
+  TYPE cms_rec IS RECORD (
+    slug VARCHAR2(150),
+    title VARCHAR2(255),
+    excerpt VARCHAR2(500),
+    body CLOB,
+    status VARCHAR2(32),
+    published_offset_days NUMBER
+  );
+  TYPE cms_table IS TABLE OF cms_rec INDEX BY PLS_INTEGER;
+  cms_pages cms_table;
+
+  TYPE review_rec IS RECORD (
+    product_name VARCHAR2(255),
+    user_email VARCHAR2(255),
+    rating NUMBER,
+    review_text VARCHAR2(1000),
+    created_offset_days NUMBER
+  );
+  TYPE review_table IS TABLE OF review_rec INDEX BY PLS_INTEGER;
+  reviews review_table;
+
+  TYPE product_pair IS RECORD (
+    name VARCHAR2(255),
+    quantity NUMBER
+  );
+  TYPE product_pair_table IS TABLE OF product_pair INDEX BY PLS_INTEGER;
+  v_idx PLS_INTEGER;
+  v_product_id NUMBER;
+  v_user_id NUMBER;
+  v_published_at TIMESTAMP;
+  v_created_at TIMESTAMP;
+
+  PROCEDURE create_order(
+    p_user_email VARCHAR2,
+    p_status VARCHAR2,
+    p_created_offset_days NUMBER,
+    p_updated_offset_days NUMBER,
+    p_payment_method VARCHAR2,
+    p_payment_status VARCHAR2,
+    p_product1 VARCHAR2,
+    p_qty1 NUMBER,
+    p_product2 VARCHAR2 DEFAULT NULL,
+    p_qty2 NUMBER DEFAULT 0,
+    p_product3 VARCHAR2 DEFAULT NULL,
+    p_qty3 NUMBER DEFAULT 0,
+    p_product4 VARCHAR2 DEFAULT NULL,
+    p_qty4 NUMBER DEFAULT 0
+  ) IS
+    v_user_id NUMBER;
+    v_total NUMBER := 0;
+    v_order_id NUMBER;
+    v_created_at TIMESTAMP;
+    v_updated_at TIMESTAMP;
+    v_items product_pair_table;
+    v_idx PLS_INTEGER;
+    v_price NUMBER;
+    v_product_id NUMBER;
+  BEGIN
+    v_user_id := user_ids(p_user_email);
+    IF v_user_id IS NULL THEN
+      RETURN;
+    END IF;
+
+    IF p_product1 IS NOT NULL THEN
+      v_idx := v_items.COUNT + 1;
+      v_items(v_idx).name := p_product1;
+      v_items(v_idx).quantity := NVL(p_qty1, 0);
+    END IF;
+
+    IF p_product2 IS NOT NULL THEN
+      v_idx := v_items.COUNT + 1;
+      v_items(v_idx).name := p_product2;
+      v_items(v_idx).quantity := NVL(p_qty2, 0);
+    END IF;
+
+    IF p_product3 IS NOT NULL THEN
+      v_idx := v_items.COUNT + 1;
+      v_items(v_idx).name := p_product3;
+      v_items(v_idx).quantity := NVL(p_qty3, 0);
+    END IF;
+
+    IF p_product4 IS NOT NULL THEN
+      v_idx := v_items.COUNT + 1;
+      v_items(v_idx).name := p_product4;
+      v_items(v_idx).quantity := NVL(p_qty4, 0);
+    END IF;
+
+    v_idx := v_items.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      IF v_items(v_idx).name IS NOT NULL AND v_items(v_idx).quantity > 0 THEN
+        v_price := NVL(product_prices(v_items(v_idx).name), 0);
+        v_total := v_total + v_price * v_items(v_idx).quantity;
+      END IF;
+      v_idx := v_items.NEXT(v_idx);
+    END LOOP;
+
+    v_total := ROUND(v_total, 2);
+
+    v_created_at := SYSTIMESTAMP;
+    IF p_created_offset_days IS NOT NULL THEN
+      v_created_at := SYSTIMESTAMP + NUMTODSINTERVAL(p_created_offset_days, 'DAY');
+    END IF;
+
+    IF p_updated_offset_days IS NOT NULL THEN
+      v_updated_at := v_created_at + NUMTODSINTERVAL(p_updated_offset_days, 'DAY');
+    ELSE
+      v_updated_at := v_created_at;
+    END IF;
+
+    INSERT INTO ORDERS (USER_ID, TOTAL, STATUS, CREATED_AT, UPDATED_AT)
+    VALUES (v_user_id, v_total, p_status, v_created_at, v_updated_at)
+    RETURNING ID INTO v_order_id;
+
+    v_idx := v_items.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      IF v_items(v_idx).name IS NOT NULL AND v_items(v_idx).quantity > 0 THEN
+        v_product_id := product_ids(v_items(v_idx).name);
+        IF v_product_id IS NOT NULL THEN
+          INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
+          VALUES (
+            v_order_id,
+            v_product_id,
+            v_items(v_idx).quantity,
+            product_prices(v_items(v_idx).name)
+          );
+        END IF;
+      END IF;
+      v_idx := v_items.NEXT(v_idx);
+    END LOOP;
+
+    INSERT INTO PAYMENTS (ORDER_ID, AMOUNT, METHOD, STATUS, CREATED_AT)
+    VALUES (
+      v_order_id,
+      v_total,
+      p_payment_method,
+      p_payment_status,
+      v_created_at + NUMTODSINTERVAL(6, 'HOUR')
+    );
+  END create_order;
+
 BEGIN
-  -- Categories
-  INSERT INTO CATEGORIES (NAME, DESCRIPTION)
-  VALUES ('Electronics', 'Electronic devices and gadgets')
-  RETURNING ID INTO v_cat_electronics;
+  -- Category dataset
+  categories(categories.COUNT + 1) := category_rec('Electronics', 'Electronic devices and gadgets for home and office.');
+  categories(categories.COUNT + 1) := category_rec('Books', 'Bestselling titles across fiction and non-fiction.');
+  categories(categories.COUNT + 1) := category_rec('Clothing', 'Seasonal apparel and everyday essentials.');
+  categories(categories.COUNT + 1) := category_rec('Home & Kitchen', 'Everything you need for cooking and decorating.');
+  categories(categories.COUNT + 1) := category_rec('Beauty & Personal Care', 'Skincare, haircare, and wellness favorites.');
+  categories(categories.COUNT + 1) := category_rec('Sports & Outdoors', 'Gear for fitness, training, and weekend adventures.');
+  categories(categories.COUNT + 1) := category_rec('Toys & Games', 'STEM kits, family fun, and kid-approved favorites.');
+  categories(categories.COUNT + 1) := category_rec('Office & Stationery', 'Workspace upgrades and productivity boosters.');
+  categories(categories.COUNT + 1) := category_rec('Grocery & Gourmet', 'Artisanal pantry staples and speciality treats.');
+  categories(categories.COUNT + 1) := category_rec('Automotive', 'Upgrades and care for every vehicle.');
+  categories(categories.COUNT + 1) := category_rec('Health & Wellness', 'Connected devices and recovery essentials.');
 
-  INSERT INTO CATEGORIES (NAME, DESCRIPTION)
-  VALUES ('Books', 'Wide variety of books')
-  RETURNING ID INTO v_cat_books;
+  IF categories.COUNT > 0 THEN
+    v_idx := categories.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      INSERT INTO CATEGORIES (NAME, DESCRIPTION)
+      VALUES (categories(v_idx).name, categories(v_idx).description)
+      RETURNING ID INTO category_ids(categories(v_idx).name);
+      v_idx := categories.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
-  INSERT INTO CATEGORIES (NAME, DESCRIPTION)
-  VALUES ('Clothing', 'Apparel and accessories')
-  RETURNING ID INTO v_cat_clothing;
+  -- Product catalog
+  products(products.COUNT + 1) := product_rec('Laptop Pro 15', 1599.99, 'Workstation-grade performance for power users.', 'Electronics');
+  products(products.COUNT + 1) := product_rec('Smartphone X2', 899, 'Flagship handset with pro-grade camera system.', 'Electronics');
+  products(products.COUNT + 1) := product_rec('Noise-Cancelling Headphones', 249.99, 'Immersive audio with adaptive noise control.', 'Electronics');
+  products(products.COUNT + 1) := product_rec('Mystery Novel - The Lost Cipher', 24.99, 'Edge-of-your-seat thriller perfect for weekend reading.', 'Books');
+  products(products.COUNT + 1) := product_rec('Cookbook - Global Flavors', 34.5, 'Explore recipes inspired by world cuisine.', 'Books');
+  products(products.COUNT + 1) := product_rec('Productivity Playbook', 29, 'Frameworks and tactics for modern leaders.', 'Books');
+  products(products.COUNT + 1) := product_rec('Premium Denim Jacket', 129.5, 'Heritage denim with a tailored silhouette.', 'Clothing');
+  products(products.COUNT + 1) := product_rec('Athletic Sneakers V2', 89.99, 'Lightweight cushioning for everyday training.', 'Clothing');
+  products(products.COUNT + 1) := product_rec('Classic White Tee Pack', 39.99, 'Three-pack of breathable cotton tees.', 'Clothing');
+  products(products.COUNT + 1) := product_rec('Stainless Steel Cookware Set', 199.99, 'Tri-ply construction with stay-cool handles.', 'Home & Kitchen');
+  products(products.COUNT + 1) := product_rec('Smart Air Purifier', 179, 'Silent filtration with real-time air quality sensing.', 'Home & Kitchen');
+  products(products.COUNT + 1) := product_rec('Memory Foam Pillow Duo', 59.99, 'Pressure-relieving support for side and back sleepers.', 'Home & Kitchen');
+  products(products.COUNT + 1) := product_rec('Vitamin C Serum 30ml', 27.99, 'Brightens complexion with stabilized antioxidants.', 'Beauty & Personal Care');
+  products(products.COUNT + 1) := product_rec('Hydrating Face Mask Set', 19.5, 'Five-piece set for an at-home spa ritual.', 'Beauty & Personal Care');
+  products(products.COUNT + 1) := product_rec('Luxury Shampoo & Conditioner', 45.99, 'Salon-quality care for smooth, shiny hair.', 'Beauty & Personal Care');
+  products(products.COUNT + 1) := product_rec('Carbon Fiber Tennis Racket', 159.99, 'Aerodynamic frame engineered for control.', 'Sports & Outdoors');
+  products(products.COUNT + 1) := product_rec('Foldable Yoga Mat', 38.99, 'Travel-friendly mat with non-slip texture.', 'Sports & Outdoors');
+  products(products.COUNT + 1) := product_rec('Trail Running Backpack', 119.99, 'Hydration-ready pack with ventilated back panel.', 'Sports & Outdoors');
+  products(products.COUNT + 1) := product_rec('STEAM Robotics Kit', 129, 'Hands-on robotics projects for curious minds.', 'Toys & Games');
+  products(products.COUNT + 1) := product_rec('Eco-Friendly Building Blocks', 59.99, 'Sustainably sourced blocks for open-ended play.', 'Toys & Games');
+  products(products.COUNT + 1) := product_rec('Family Game Night Bundle', 74.99, 'Curated classics for every generation.', 'Toys & Games');
+  products(products.COUNT + 1) := product_rec('Ergonomic Office Chair', 299.99, 'Adjustable lumbar support and breathable mesh.', 'Office & Stationery');
+  products(products.COUNT + 1) := product_rec('Wireless Mechanical Keyboard', 139.99, 'Low-profile switches with multi-device pairing.', 'Office & Stationery');
+  products(products.COUNT + 1) := product_rec('Productivity Planner Set', 24.99, 'Daily, weekly, and quarterly planning inserts.', 'Office & Stationery');
+  products(products.COUNT + 1) := product_rec('Organic Coffee Beans 1kg', 29.99, 'Small-batch roast with notes of chocolate and citrus.', 'Grocery & Gourmet');
+  products(products.COUNT + 1) := product_rec('Artisanal Olive Oil 750ml', 21.49, 'Cold-pressed blend ideal for finishing dishes.', 'Grocery & Gourmet');
+  products(products.COUNT + 1) := product_rec('Gourmet Snack Sampler Box', 39.5, 'Sweet and savory treats sourced from independent makers.', 'Grocery & Gourmet');
+  products(products.COUNT + 1) := product_rec('All-Weather Car Mats', 79.99, 'Custom-fit mats that trap dirt, snow, and spills.', 'Automotive');
+  products(products.COUNT + 1) := product_rec('Portable Jump Starter', 119.99, 'Compact power bank capable of jump-starting SUVs.', 'Automotive');
+  products(products.COUNT + 1) := product_rec('Dash Cam Ultra 4K', 199.99, 'Ultra-wide lens with night vision and app sync.', 'Automotive');
+  products(products.COUNT + 1) := product_rec('Smart Fitness Watch', 149, 'Track workouts, recovery, and sleep insights.', 'Health & Wellness');
+  products(products.COUNT + 1) := product_rec('Foam Roller Recovery Kit', 59.99, 'Multi-density rollers for post-training mobility.', 'Health & Wellness');
+  products(products.COUNT + 1) := product_rec('Herbal Tea Wellness Set', 24.5, 'Six calming blends packaged for gifting.', 'Health & Wellness');
 
-  -- Products
-  INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-  VALUES ('Laptop', 999.99, 'High-performance laptop', v_cat_electronics)
-  RETURNING ID INTO v_product_laptop;
+  IF products.COUNT > 0 THEN
+    v_idx := products.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_product_id := NULL;
+      INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
+      VALUES (
+        products(v_idx).name,
+        products(v_idx).price,
+        products(v_idx).description,
+        category_ids(products(v_idx).category_name)
+      )
+      RETURNING ID INTO v_product_id;
 
-  INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-  VALUES ('Smartphone', 499.99, 'Latest generation smartphone', v_cat_electronics)
-  RETURNING ID INTO v_product_phone;
+      product_ids(products(v_idx).name) := v_product_id;
+      product_prices(products(v_idx).name) := products(v_idx).price;
 
-  INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-  VALUES ('Novel', 19.99, 'Bestselling fiction book', v_cat_books)
-  RETURNING ID INTO v_product_novel;
+      v_idx := products.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
   -- Users
-  INSERT INTO USERS (EMAIL, PASSWORD, NAME, ROLE)
-  VALUES (
-    'alice@example.com',
-    '$2b$10$awPVh5HUGIuDVqCksoPBu.ads9SiTDszcT81BkJlymuKgkzAp9.J6',
-    'Alice',
-    'CUSTOMER'
-  )
-  RETURNING ID INTO v_user_alice;
+  users(users.COUNT + 1) := user_rec('alice@example.com', PASSWORD_HASH, 'Alice Johnson', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('bob@example.com', PASSWORD_HASH, 'Bob Martinez', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('carol@example.com', PASSWORD_HASH, 'Carol Nguyen', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('david@example.com', PASSWORD_HASH, 'David Kim', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('eve@example.com', PASSWORD_HASH, 'Eve Summers', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('frank@example.com', PASSWORD_HASH, 'Frank Rivera', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('grace@example.com', PASSWORD_HASH, 'Grace Lee', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('heidi@example.com', PASSWORD_HASH, 'Heidi Brooks', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('ivan@example.com', PASSWORD_HASH, 'Ivan Petrov', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('judy@example.com', PASSWORD_HASH, 'Judy Alvarez', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('laura@example.com', PASSWORD_HASH, 'Laura Chen', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('mia@example.com', PASSWORD_HASH, 'Mia Torres', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('noah@example.com', PASSWORD_HASH, 'Noah Patel', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('olivia@example.com', PASSWORD_HASH, 'Olivia Gomez', 'CUSTOMER');
+  users(users.COUNT + 1) := user_rec('support@example.com', PASSWORD_HASH, 'Support Agent', 'SUPPORT');
+  users(users.COUNT + 1) := user_rec('support.supervisor@example.com', PASSWORD_HASH, 'Support Supervisor', 'SUPPORT');
 
-  INSERT INTO USERS (EMAIL, PASSWORD, NAME, ROLE)
-  VALUES (
-    'bob@example.com',
-    '$2b$10$awPVh5HUGIuDVqCksoPBu.ads9SiTDszcT81BkJlymuKgkzAp9.J6',
-    'Bob',
-    'CUSTOMER'
-  )
-  RETURNING ID INTO v_user_bob;
-
-  INSERT INTO USERS (EMAIL, PASSWORD, NAME, ROLE)
-  VALUES (
-    'support@example.com',
-    '$2b$10$awPVh5HUGIuDVqCksoPBu.ads9SiTDszcT81BkJlymuKgkzAp9.J6',
-    'Support Agent',
-    'SUPPORT'
-  )
-  RETURNING ID INTO v_user_support;
+  IF users.COUNT > 0 THEN
+    v_idx := users.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      INSERT INTO USERS (EMAIL, PASSWORD, NAME, ROLE)
+      VALUES (users(v_idx).email, users(v_idx).password, users(v_idx).name, users(v_idx).role)
+      RETURNING ID INTO user_ids(users(v_idx).email);
+      v_idx := users.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
   -- Addresses
-  INSERT INTO ADDRESSES (USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY)
-  VALUES (v_user_alice, '123 Market Street', 'San Francisco', '94105', 'USA');
+  addresses(addresses.COUNT + 1) := address_rec('alice@example.com', '123 Market Street', 'San Francisco', '94105', 'USA');
+  addresses(addresses.COUNT + 1) := address_rec('alice@example.com', '85 3rd Avenue', 'New York', '10003', 'USA');
+  addresses(addresses.COUNT + 1) := address_rec('bob@example.com', '12 Baker Street', 'London', 'NW1 6XE', 'UK');
+  addresses(addresses.COUNT + 1) := address_rec('carol@example.com', '701 Queen Street', 'Toronto', 'M5V 2B8', 'Canada');
+  addresses(addresses.COUNT + 1) := address_rec('david@example.com', '48 Orchard Road', 'Singapore', '238839', 'Singapore');
+  addresses(addresses.COUNT + 1) := address_rec('eve@example.com', '220 Collins Street', 'Melbourne', '3000', 'Australia');
+  addresses(addresses.COUNT + 1) := address_rec('frank@example.com', '90 Friedrichstrasse', 'Berlin', '10117', 'Germany');
+  addresses(addresses.COUNT + 1) := address_rec('grace@example.com', '450 Gran Via', 'Madrid', '28013', 'Spain');
+  addresses(addresses.COUNT + 1) := address_rec('heidi@example.com', '5 Rue de Rivoli', 'Paris', '75001', 'France');
+  addresses(addresses.COUNT + 1) := address_rec('ivan@example.com', '14 Nevsky Prospekt', 'Saint Petersburg', '191025', 'Russia');
+  addresses(addresses.COUNT + 1) := address_rec('judy@example.com', '789 Yonge Street', 'Toronto', 'M4W 2G8', 'Canada');
+  addresses(addresses.COUNT + 1) := address_rec('laura@example.com', '66 Shenton Way', 'Singapore', '079120', 'Singapore');
+  addresses(addresses.COUNT + 1) := address_rec('mia@example.com', '77 King Street', 'Auckland', '1010', 'New Zealand');
+  addresses(addresses.COUNT + 1) := address_rec('noah@example.com', '810 7th Avenue', 'New York', '10019', 'USA');
+  addresses(addresses.COUNT + 1) := address_rec('olivia@example.com', '55 Richmond Street', 'Vancouver', 'V6C 2R7', 'Canada');
+  addresses(addresses.COUNT + 1) := address_rec('support@example.com', '400 Mission Street', 'San Francisco', '94105', 'USA');
+  addresses(addresses.COUNT + 1) := address_rec('support.supervisor@example.com', '150 King Street West', 'Toronto', 'M5H 1J9', 'Canada');
 
-  INSERT INTO ADDRESSES (USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY)
-  VALUES (v_user_alice, '85 3rd Avenue', 'New York', '10003', 'USA');
-
-  INSERT INTO ADDRESSES (USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY)
-  VALUES (v_user_bob, '12 Baker Street', 'London', 'NW1', 'UK');
+  IF addresses.COUNT > 0 THEN
+    v_idx := addresses.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_user_id := user_ids(addresses(v_idx).user_email);
+      IF v_user_id IS NOT NULL THEN
+        INSERT INTO ADDRESSES (USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY)
+        VALUES (
+          v_user_id,
+          addresses(v_idx).street,
+          addresses(v_idx).city,
+          addresses(v_idx).postal_code,
+          addresses(v_idx).country
+        );
+      END IF;
+      v_idx := addresses.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
   -- Cart items
-  INSERT INTO CART_ITEMS (USER_ID, PRODUCT_ID, QUANTITY)
-  VALUES (v_user_alice, v_product_laptop, 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('alice@example.com', 'Laptop Pro 15', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('alice@example.com', 'Noise-Cancelling Headphones', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('bob@example.com', 'Mystery Novel - The Lost Cipher', 2);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('carol@example.com', 'Stainless Steel Cookware Set', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('david@example.com', 'Carbon Fiber Tennis Racket', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('david@example.com', 'Foldable Yoga Mat', 2);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('eve@example.com', 'Hydrating Face Mask Set', 3);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('frank@example.com', 'Portable Jump Starter', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('grace@example.com', 'Wireless Mechanical Keyboard', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('heidi@example.com', 'Organic Coffee Beans 1kg', 2);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('ivan@example.com', 'Dash Cam Ultra 4K', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('judy@example.com', 'Smart Fitness Watch', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('mia@example.com', 'STEAM Robotics Kit', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('noah@example.com', 'Laptop Pro 15', 1);
+  cart_entries(cart_entries.COUNT + 1) := cart_rec('olivia@example.com', 'Herbal Tea Wellness Set', 3);
 
-  INSERT INTO CART_ITEMS (USER_ID, PRODUCT_ID, QUANTITY)
-  VALUES (v_user_alice, v_product_phone, 2);
+  IF cart_entries.COUNT > 0 THEN
+    v_idx := cart_entries.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_user_id := user_ids(cart_entries(v_idx).user_email);
+      v_product_id := product_ids(cart_entries(v_idx).product_name);
+      IF v_user_id IS NOT NULL AND v_product_id IS NOT NULL THEN
+        INSERT INTO CART_ITEMS (USER_ID, PRODUCT_ID, QUANTITY)
+        VALUES (v_user_id, v_product_id, cart_entries(v_idx).quantity);
+      END IF;
+      v_idx := cart_entries.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
-  INSERT INTO CART_ITEMS (USER_ID, PRODUCT_ID, QUANTITY)
-  VALUES (v_user_bob, v_product_novel, 1);
+  -- Wishlist entries
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('alice@example.com', 'Smart Air Purifier');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('alice@example.com', 'Smart Fitness Watch');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('bob@example.com', 'Laptop Pro 15');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('carol@example.com', 'Memory Foam Pillow Duo');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('david@example.com', 'Trail Running Backpack');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('eve@example.com', 'Luxury Shampoo & Conditioner');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('frank@example.com', 'All-Weather Car Mats');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('grace@example.com', 'Ergonomic Office Chair');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('heidi@example.com', 'Hydrating Face Mask Set');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('ivan@example.com', 'Portable Jump Starter');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('judy@example.com', 'Foam Roller Recovery Kit');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('laura@example.com', 'Productivity Planner Set');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('mia@example.com', 'Eco-Friendly Building Blocks');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('noah@example.com', 'Dash Cam Ultra 4K');
+  wishlist_entries(wishlist_entries.COUNT + 1) := wishlist_rec('olivia@example.com', 'Hydrating Face Mask Set');
 
-  -- Wishlist
-  INSERT INTO WISHLIST (USER_ID, PRODUCT_ID)
-  VALUES (v_user_alice, v_product_novel);
+  IF wishlist_entries.COUNT > 0 THEN
+    v_idx := wishlist_entries.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_user_id := user_ids(wishlist_entries(v_idx).user_email);
+      v_product_id := product_ids(wishlist_entries(v_idx).product_name);
+      IF v_user_id IS NOT NULL AND v_product_id IS NOT NULL THEN
+        INSERT INTO WISHLIST (USER_ID, PRODUCT_ID)
+        VALUES (v_user_id, v_product_id);
+      END IF;
+      v_idx := wishlist_entries.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
-  INSERT INTO WISHLIST (USER_ID, PRODUCT_ID)
-  VALUES (v_user_bob, v_product_laptop);
-
-  -- CMS Pages
-  INSERT INTO CMS_PAGES (SLUG, TITLE, EXCERPT, BODY, STATUS, PUBLISHED_AT)
-  VALUES (
+  -- CMS pages
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
     'homepage',
     'Homepage',
     'Dynamic landing configuration for ShopX.',
-    '<h2>ShopX – Tech + Design</h2><p>This content is managed through the CMS for the homepage. Update it from the admin portal to highlight campaigns, banners, and collections.</p><ul><li>Configurable landing blocks</li><li>Promotional highlights</li><li>Multiple calls to action</li></ul>',
+    '<h2>ShopX - Tech + Design</h2><p>Welcome to our refreshed storefront experience with curated campaigns and featured drops.</p>',
     'PUBLISHED',
-    SYSTIMESTAMP
-  )
-  RETURNING ID INTO v_page_homepage;
-
-  INSERT INTO CMS_PAGES (SLUG, TITLE, EXCERPT, BODY, STATUS)
-  VALUES (
+    -7
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
     'about-us',
     'About ShopX',
     'Who we are and what we stand for.',
-    '<p>ShopX is a complete e-commerce platform, ready for personalization and scale.</p>',
-    'DRAFT'
+    '<p>ShopX is a complete commerce platform built for storytelling and scale.</p>',
+    'DRAFT',
+    NULL
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'summer-sale-landing',
+    'Summer Sale Event',
+    'Limited-time offers across every category.',
+    '<p>Score up to 40% off warm-weather essentials, from activewear to outdoor tech.</p>',
+    'PUBLISHED',
+    -15
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'lookbook-fall-collection',
+    'Fall Lookbook',
+    'New textures, layers, and colors for the season.',
+    '<p>Discover our stylist-curated outfits and accessorize with the latest drops.</p>',
+    'PUBLISHED',
+    -3
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'support-center',
+    'Support Center',
+    'Self-service guides and contact options.',
+    '<p>Find quick answers, start a return, or reach the ShopX support crew.</p>',
+    'PUBLISHED',
+    -20
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'sustainability-manifesto',
+    'Sustainability Manifesto',
+    'Our commitments to responsible sourcing and shipping.',
+    '<p>We invest in recyclable packaging, carbon-neutral delivery, and ethical partnerships.</p>',
+    'DRAFT',
+    NULL
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'gift-guide-holidays',
+    'Holiday Gift Guide',
+    'Trending presents for every personality.',
+    '<p>Browse curated picks for tech lovers, wellness seekers, foodies, and more.</p>',
+    'PUBLISHED',
+    -30
+  );
+  cms_pages(cms_pages.COUNT + 1) := cms_rec(
+    'press-room',
+    'Press Room',
+    'Latest ShopX announcements and media assets.',
+    '<p>Download press kits, brand photography, and read our newsroom updates.</p>',
+    'DRAFT',
+    NULL
   );
 
+  IF cms_pages.COUNT > 0 THEN
+    v_idx := cms_pages.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_published_at := NULL;
+      IF cms_pages(v_idx).status = 'PUBLISHED' THEN
+        IF cms_pages(v_idx).published_offset_days IS NOT NULL THEN
+          v_published_at := SYSTIMESTAMP + NUMTODSINTERVAL(cms_pages(v_idx).published_offset_days, 'DAY');
+        ELSE
+          v_published_at := SYSTIMESTAMP;
+        END IF;
+      END IF;
+
+      INSERT INTO CMS_PAGES (SLUG, TITLE, EXCERPT, BODY, STATUS, PUBLISHED_AT)
+      VALUES (
+        cms_pages(v_idx).slug,
+        cms_pages(v_idx).title,
+        cms_pages(v_idx).excerpt,
+        cms_pages(v_idx).body,
+        cms_pages(v_idx).status,
+        v_published_at
+      );
+      v_idx := cms_pages.NEXT(v_idx);
+    END LOOP;
+  END IF;
+
   -- Reviews
-  INSERT INTO REVIEWS (PRODUCT_ID, USER_ID, RATING, REVIEW_TEXT)
-  VALUES (v_product_laptop, v_user_alice, 5, 'Outstanding laptop for productivity work.');
+  reviews(reviews.COUNT + 1) := review_rec('Laptop Pro 15', 'alice@example.com', 5, 'Powerhouse for remote work setups.', -12);
+  reviews(reviews.COUNT + 1) := review_rec('Smartphone X2', 'bob@example.com', 4, 'Fast performance and reliable battery life.', -9);
+  reviews(reviews.COUNT + 1) := review_rec('Hydrating Face Mask Set', 'eve@example.com', 5, 'Spa-level hydration without leaving home.', -6);
+  reviews(reviews.COUNT + 1) := review_rec('Ergonomic Office Chair', 'grace@example.com', 4, 'Keeps posture in check during long support shifts.', -14);
+  reviews(reviews.COUNT + 1) := review_rec('STEAM Robotics Kit', 'mia@example.com', 5, 'The build guide kept our kids engaged for hours.', -4);
+  reviews(reviews.COUNT + 1) := review_rec('Carbon Fiber Tennis Racket', 'david@example.com', 4, 'Lightweight frame with excellent control at the net.', -18);
+  reviews(reviews.COUNT + 1) := review_rec('Portable Jump Starter', 'frank@example.com', 5, 'Surprisingly compact and it saved me on a road trip.', -7);
+  reviews(reviews.COUNT + 1) := review_rec('Organic Coffee Beans 1kg', 'heidi@example.com', 5, 'Rich aroma and balanced flavor in every brew.', -5);
+  reviews(reviews.COUNT + 1) := review_rec('Smart Fitness Watch', 'judy@example.com', 4, 'Great health insights though the charger is delicate.', -8);
+  reviews(reviews.COUNT + 1) := review_rec('Stainless Steel Cookware Set', 'carol@example.com', 5, 'Even heating and sturdy handles for heavy-duty cooking.', -11);
 
-  INSERT INTO REVIEWS (PRODUCT_ID, USER_ID, RATING, REVIEW_TEXT)
-  VALUES (v_product_phone, v_user_bob, 4, 'Solid phone with great battery life.');
+  IF reviews.COUNT > 0 THEN
+    v_idx := reviews.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      v_product_id := product_ids(reviews(v_idx).product_name);
+      v_user_id := user_ids(reviews(v_idx).user_email);
+      IF v_product_id IS NOT NULL AND v_user_id IS NOT NULL THEN
+        v_created_at := SYSTIMESTAMP;
+        IF reviews(v_idx).created_offset_days IS NOT NULL THEN
+          v_created_at := SYSTIMESTAMP + NUMTODSINTERVAL(reviews(v_idx).created_offset_days, 'DAY');
+        END IF;
 
-  INSERT INTO REVIEWS (PRODUCT_ID, USER_ID, RATING, REVIEW_TEXT)
-  VALUES (v_product_novel, v_user_alice, 5, 'Could not put this novel down.');
+        INSERT INTO REVIEWS (PRODUCT_ID, USER_ID, RATING, REVIEW_TEXT, CREATED_AT)
+        VALUES (
+          v_product_id,
+          v_user_id,
+          reviews(v_idx).rating,
+          reviews(v_idx).review_text,
+          v_created_at
+        );
+      END IF;
+      v_idx := reviews.NEXT(v_idx);
+    END LOOP;
+  END IF;
 
-  -- Orders & payments
-  INSERT INTO ORDERS (USER_ID, TOTAL, STATUS, CREATED_AT, UPDATED_AT)
-  VALUES (v_user_alice, 1499.98, 'PENDING', SYSTIMESTAMP - 5, SYSTIMESTAMP - 5)
-  RETURNING ID INTO v_order_alice;
-
-  INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
-  VALUES (v_order_alice, v_product_laptop, 1, 999.99);
-
-  INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
-  VALUES (v_order_alice, v_product_phone, 1, 499.99);
-
-  INSERT INTO PAYMENTS (ORDER_ID, AMOUNT, METHOD, STATUS, CREATED_AT)
-  VALUES (v_order_alice, 1499.98, 'CARD', 'AUTHORIZED', SYSTIMESTAMP - 4);
-
-  INSERT INTO ORDERS (USER_ID, TOTAL, STATUS, CREATED_AT, UPDATED_AT)
-  VALUES (v_user_bob, 19.99, 'SHIPPED', SYSTIMESTAMP - 2, SYSTIMESTAMP - 1)
-  RETURNING ID INTO v_order_bob;
-
-  INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
-  VALUES (v_order_bob, v_product_novel, 1, 19.99);
-
-  INSERT INTO PAYMENTS (ORDER_ID, AMOUNT, METHOD, STATUS, CREATED_AT)
-  VALUES (v_order_bob, 19.99, 'CARD', 'CAPTURED', SYSTIMESTAMP - 1.5);
+  -- Orders and payments
+  create_order('alice@example.com', 'PENDING', -10, 0.5, 'CARD', 'AUTHORIZED', 'Laptop Pro 15', 1, 'Noise-Cancelling Headphones', 1, 'Wireless Mechanical Keyboard', 1);
+  create_order('alice@example.com', 'SHIPPED', -6, 0.3, 'CARD', 'CAPTURED', 'Smart Air Purifier', 1, 'Vitamin C Serum 30ml', 2);
+  create_order('bob@example.com', 'DELIVERED', -12, 1, 'PAYPAL', 'CAPTURED', 'Mystery Novel - The Lost Cipher', 1, 'Cookbook - Global Flavors', 1);
+  create_order('bob@example.com', 'PENDING', -2, 0.2, 'CARD', 'AUTHORIZED', 'Organic Coffee Beans 1kg', 3);
+  create_order('carol@example.com', 'DELIVERED', -20, 1.2, 'CARD', 'CAPTURED', 'Stainless Steel Cookware Set', 1, 'Memory Foam Pillow Duo', 2);
+  create_order('carol@example.com', 'REFUNDED', -25, 1.5, 'CARD', 'REFUNDED', 'Smart Air Purifier', 1);
+  create_order('david@example.com', 'PROCESSING', -8, 0.6, 'CARD', 'AUTHORIZED', 'Carbon Fiber Tennis Racket', 1, 'Trail Running Backpack', 1);
+  create_order('david@example.com', 'DELIVERED', -30, 2, 'CARD', 'CAPTURED', 'Trail Running Backpack', 1, 'Smart Fitness Watch', 1);
+  create_order('eve@example.com', 'SHIPPED', -4, 0.4, 'APPLE_PAY', 'CAPTURED', 'Hydrating Face Mask Set', 3, 'Smart Fitness Watch', 1);
+  create_order('frank@example.com', 'DELIVERED', -15, 0.8, 'CARD', 'CAPTURED', 'Portable Jump Starter', 1, 'All-Weather Car Mats', 1);
+  create_order('grace@example.com', 'PENDING', -3, 0.2, 'CARD', 'AUTHORIZED', 'Ergonomic Office Chair', 1);
+  create_order('grace@example.com', 'DELIVERED', -16, 1.1, 'CARD', 'CAPTURED', 'Ergonomic Office Chair', 1, 'Wireless Mechanical Keyboard', 1);
+  create_order('heidi@example.com', 'DELIVERED', -9, 0.5, 'CARD', 'CAPTURED', 'Organic Coffee Beans 1kg', 2, 'Gourmet Snack Sampler Box', 1);
+  create_order('heidi@example.com', 'PROCESSING', -13, 0.6, 'CARD', 'AUTHORIZED', 'Gourmet Snack Sampler Box', 2);
+  create_order('ivan@example.com', 'PROCESSING', -5, 0.4, 'CARD', 'AUTHORIZED', 'Dash Cam Ultra 4K', 1);
+  create_order('ivan@example.com', 'DELIVERED', -19, 1.3, 'CARD', 'CAPTURED', 'Portable Jump Starter', 1, 'Dash Cam Ultra 4K', 1);
+  create_order('judy@example.com', 'SHIPPED', -7, 0.5, 'CARD', 'CAPTURED', 'Smart Fitness Watch', 1, 'Foam Roller Recovery Kit', 1);
+  create_order('judy@example.com', 'PROCESSING', -3, 0.4, 'CARD', 'AUTHORIZED', 'Hydrating Face Mask Set', 2, 'Herbal Tea Wellness Set', 2);
+  create_order('laura@example.com', 'DELIVERED', -18, 0.9, 'CARD', 'CAPTURED', 'Foldable Yoga Mat', 1, 'Productivity Planner Set', 2);
+  create_order('mia@example.com', 'PROCESSING', -11, 0.7, 'CARD', 'AUTHORIZED', 'STEAM Robotics Kit', 1, 'Eco-Friendly Building Blocks', 1);
+  create_order('noah@example.com', 'DELIVERED', -14, 0.7, 'CARD', 'CAPTURED', 'Laptop Pro 15', 1);
+  create_order('olivia@example.com', 'PENDING', -1, 0.1, 'CARD', 'AUTHORIZED', 'Herbal Tea Wellness Set', 4, 'Hydrating Face Mask Set', 2);
+  create_order('eve@example.com', 'DELIVERED', -22, 1.2, 'CARD', 'CAPTURED', 'Luxury Shampoo & Conditioner', 1, 'Vitamin C Serum 30ml', 1);
 END;
 /
 

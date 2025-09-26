@@ -11,6 +11,9 @@ const PRODUCT_SELECT = `
     p.PRICE,
     p.DESCRIPTION,
     p.CATEGORY_ID,
+    p.IMAGE_FILENAME,
+    p.IMAGE_MIME_TYPE,
+    p.IMAGE_UPDATED_AT,
     c.ID,
     c.NAME,
     c.DESCRIPTION
@@ -24,14 +27,23 @@ const mapProductRow = (row: any[]): Product => ({
   price: row[2],
   description: row[3],
   categoryId: row[4],
-  category: row[5]
+  imageFilename: row[5],
+  imageMimeType: row[6],
+  imageUpdatedAt: row[7] instanceof Date ? row[7].toISOString() : row[7],
+  category: row[8]
     ? {
-        id: row[5],
-        name: row[6],
-        description: row[7],
+        id: row[8],
+        name: row[9],
+        description: row[10],
       }
     : null,
 })
+
+export interface ProductImagePayload {
+  filename: string
+  mimeType: string
+  data: Buffer
+}
 
 export const ProductService = {
   getAll: async (
@@ -105,18 +117,42 @@ export const ProductService = {
     price: number,
     description: string | undefined,
     categoryId: number,
+    image?: ProductImagePayload,
   ): Promise<Product> => {
     const connection = await getConnectionFromPool()
     try {
+      const now = image ? new Date() : null
       const result = await connection.execute(
-        `INSERT INTO PRODUCTS (NAME, PRICE, DESCRIPTION, CATEGORY_ID)
-         VALUES (:name, :price, :description, :categoryId)
+        `INSERT INTO PRODUCTS (
+            NAME,
+            PRICE,
+            DESCRIPTION,
+            CATEGORY_ID,
+            IMAGE_FILENAME,
+            IMAGE_MIME_TYPE,
+            IMAGE_DATA,
+            IMAGE_UPDATED_AT
+         )
+         VALUES (
+            :name,
+            :price,
+            :description,
+            :categoryId,
+            :imageFilename,
+            :imageMimeType,
+            :imageData,
+            :imageUpdatedAt
+         )
          RETURNING ID INTO :id`,
         {
           name,
           price,
           description,
           categoryId,
+          imageFilename: image?.filename ?? null,
+          imageMimeType: image?.mimeType ?? null,
+          imageData: image?.data ?? null,
+          imageUpdatedAt: now,
           id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
         },
         { autoCommit: true },
@@ -142,6 +178,8 @@ export const ProductService = {
     price?: number,
     description?: string,
     categoryId?: number,
+    image?: ProductImagePayload | null,
+    removeImage?: boolean,
   ): Promise<Product> => {
     const connection = await getConnectionFromPool()
     try {
@@ -163,6 +201,22 @@ export const ProductService = {
       if (categoryId !== undefined) {
         fields.push('CATEGORY_ID = :categoryId')
         params.categoryId = categoryId
+      }
+
+      if (image) {
+        fields.push('IMAGE_FILENAME = :imageFilename')
+        fields.push('IMAGE_MIME_TYPE = :imageMimeType')
+        fields.push('IMAGE_DATA = :imageData')
+        fields.push('IMAGE_UPDATED_AT = :imageUpdatedAt')
+        params.imageFilename = image.filename
+        params.imageMimeType = image.mimeType
+        params.imageData = image.data
+        params.imageUpdatedAt = new Date()
+      } else if (removeImage) {
+        fields.push('IMAGE_FILENAME = NULL')
+        fields.push('IMAGE_MIME_TYPE = NULL')
+        fields.push('IMAGE_DATA = NULL')
+        fields.push('IMAGE_UPDATED_AT = NULL')
       }
 
       if (!fields.length) {
@@ -203,6 +257,47 @@ export const ProductService = {
       return (result.rowsAffected || 0) > 0
     } catch (err) {
       logger.error(`Error in ProductService.delete: ${err}`)
+      throw err
+    } finally {
+      await connection.close()
+    }
+  },
+
+  getImageContent: async (
+    id: number,
+  ): Promise<{ filename: string; mimeType: string; data: Buffer; updatedAt: Date } | null> => {
+    const connection = await getConnectionFromPool()
+    try {
+      const result = await connection.execute(
+        `SELECT IMAGE_FILENAME, IMAGE_MIME_TYPE, IMAGE_DATA, IMAGE_UPDATED_AT
+         FROM PRODUCTS
+         WHERE ID = :id`,
+        { id },
+        { fetchInfo: { IMAGE_DATA: { type: oracledb.BUFFER } } },
+      )
+
+      const row = result.rows?.[0] as any[] | undefined
+      if (!row || !row[0] || !row[1] || !row[2]) {
+        return null
+      }
+
+      const filename = row[0] as string
+      const mimeType = row[1] as string
+      const data = row[2] as Buffer
+      const updatedAtRaw = row[3] as Date | null | undefined
+
+      if (!Buffer.isBuffer(data)) {
+        return null
+      }
+
+      return {
+        filename,
+        mimeType,
+        data,
+        updatedAt: updatedAtRaw instanceof Date ? updatedAtRaw : new Date(),
+      }
+    } catch (err) {
+      logger.error(`Error in ProductService.getImageContent: ${err}`)
       throw err
     } finally {
       await connection.close()

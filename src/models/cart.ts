@@ -1,7 +1,10 @@
 import { Product } from './product'
 
 export interface CartItem {
-  product: Pick<Product, 'id' | 'name' | 'price' | 'description' | 'categoryId'>
+  product: Pick<
+    Product,
+    'id' | 'name' | 'price' | 'description' | 'categoryId' | 'imageFilename' | 'imageMimeType' | 'imageUpdatedAt'
+  >
   quantity: number
 }
 

@@ -19,6 +19,12 @@ export interface OrderProductInput {
   price: number
 }
 
+export interface ProductImageUploadInput {
+  filename: string
+  mimeType: string
+  base64Data: string
+}
+
 export interface CreateOrderArgs {
   userId: number | string
   products: OrderProductInput[]

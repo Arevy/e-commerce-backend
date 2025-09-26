@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken'
 import { getConnectionFromPool } from '../config/database'
 import { logger } from '../utils/logger'
 import { User, UserRole } from '../models/user'
+import { invalidateUserContextCache } from './userContextCache'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'
 
@@ -259,6 +260,7 @@ export const UserService = {
     if (!updated) {
       throw new Error(`User ${id} not found after update`)
     }
+    await invalidateUserContextCache(id)
     return updated
   },
 
@@ -270,7 +272,11 @@ export const UserService = {
         { id },
         { autoCommit: true },
       )
-      return (result.rowsAffected || 0) > 0
+      const removed = (result.rowsAffected || 0) > 0
+      if (removed) {
+        await invalidateUserContextCache(id)
+      }
+      return removed
     } catch (err) {
       logger.error('Error in UserService.remove:', err)
       throw err

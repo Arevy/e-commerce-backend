@@ -97,6 +97,13 @@ export const typeDefs = /* GraphQL */ `
     products: [Product!]!
   }
 
+  type UserContext {
+    user: User!
+    cart: Cart!
+    wishlist: Wishlist!
+    addresses: [Address!]!
+  }
+
   ###########
   # Review  #
   ###########
@@ -191,6 +198,7 @@ export const typeDefs = /* GraphQL */ `
 
     getCart(userId: ID!): Cart!
     getWishlist(userId: ID!): Wishlist!
+    getUserContext(userId: ID!): UserContext!
     getReviews(productId: ID!): [Review!]!
     getAddresses(userId: ID!): [Address!]!
     getPayment(paymentId: ID!): Payment
@@ -319,6 +327,7 @@ export const typeDefs = /* GraphQL */ `
 
     cart(userId: ID!): Cart!
     wishlist(userId: ID!): Wishlist!
+    userContext(userId: ID!): UserContext!
 
     reviews(productId: ID, userId: ID): [Review!]!
     review(id: ID!): Review

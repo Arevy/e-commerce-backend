@@ -14,6 +14,7 @@ import { userResolver } from './graphql/resolvers/userResolver'
 import { wishlistResolver } from './graphql/resolvers/wishlistResolver'
 import { customerSupportResolver } from './graphql/resolvers/customerSupportResolver'
 import { cmsResolver } from './graphql/resolvers/cmsResolver'
+import { userContextResolver } from './graphql/resolvers/userContextResolver'
 import { connectToDatabase, closeDatabaseConnection } from './config/database'
 import { connectRedis, disconnectRedis } from './config/redis'
 
@@ -90,6 +91,7 @@ export const startServer = async () => {
       orderResolver,
       cartResolver,
       wishlistResolver,
+      userContextResolver,
       reviewResolver,
       addressResolver,
       paymentResolver,

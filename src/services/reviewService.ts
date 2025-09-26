@@ -55,12 +55,12 @@ export const ReviewService = {
       const params: Record<string, unknown> = {}
 
       if (filters?.productId !== undefined) {
-        where.push('PRODUCT_ID = :pid')
-        params.pid = filters.productId
+        where.push('PRODUCT_ID = :productId')
+        params.productId = filters.productId
       }
       if (filters?.userId !== undefined) {
-        where.push('USER_ID = :uid')
-        params.uid = filters.userId
+        where.push('USER_ID = :userId')
+        params.userId = filters.userId
       }
 
       let query = `SELECT ID,
@@ -101,9 +101,9 @@ export const ReviewService = {
                 REVIEW_TEXT,
                 TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
            FROM REVIEWS
-          WHERE PRODUCT_ID=:pid
+          WHERE PRODUCT_ID = :productId
           ORDER BY CREATED_AT DESC`,
-        { pid: productId },
+        { productId },
       )
       return (res.rows || []).map((row: any[]) => mapReviewRow(row))
     } catch (err) {
@@ -128,18 +128,18 @@ export const ReviewService = {
     try {
       const res = await conn.execute(
         `INSERT INTO REVIEWS (PRODUCT_ID, USER_ID, RATING, REVIEW_TEXT, CREATED_AT)
-         VALUES (:pid,:uid,:rat,:com,SYSTIMESTAMP)
-         RETURNING ID INTO :rid`,
+         VALUES (:productId, :userId, :rating, :comment, SYSTIMESTAMP)
+         RETURNING ID INTO :reviewId`,
         {
-          pid: productId,
-          uid: userId,
-          rat: rating,
-          com: reviewText,
-          rid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+          productId,
+          userId,
+          rating,
+          comment: reviewText,
+          reviewId: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
         },
         { autoCommit: true },
       )
-      reviewId = (res.outBinds as any).rid[0]
+      reviewId = (res.outBinds as any).reviewId[0]
     } finally {
       await conn.close()
     }

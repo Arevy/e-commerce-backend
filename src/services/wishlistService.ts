@@ -1,6 +1,8 @@
 import { getConnectionFromPool } from '../config/database'
 import { cacheDel, cacheGet, cacheSet } from '../config/redis'
 import { Wishlist } from '../models/wishlist'
+import { logger } from '../utils/logger'
+import { invalidateUserContextCache } from './userContextCache'
 
 const wishlistCacheKey = (userId: number) => `wishlist:${userId}`
 
@@ -14,6 +16,7 @@ const mapWishlistProduct = (row: any[]) => ({
 
 export const WishlistService = {
   getWishlist: async (userId: number): Promise<Wishlist> => {
+    logger.debug('WishlistService.getWishlist called', { userId })
     const cached = await cacheGet<Wishlist>(wishlistCacheKey(userId))
     if (cached) {
       return cached
@@ -29,8 +32,8 @@ export const WishlistService = {
                 p.CATEGORY_ID
            FROM WISHLIST w
            JOIN PRODUCTS p ON p.ID = w.PRODUCT_ID
-          WHERE w.USER_ID = :uid`,
-        { uid: userId },
+          WHERE w.USER_ID = :userId`,
+        { userId },
       )
 
       const products = (res.rows || []).map((row: any[]) =>
@@ -52,8 +55,8 @@ export const WishlistService = {
     try {
       await conn.execute(
         `INSERT INTO WISHLIST (USER_ID, PRODUCT_ID)
-         VALUES (:uid,:pid)`,
-        { uid: userId, pid: productId },
+         VALUES (:userId, :productId)`,
+        { userId, productId },
         { autoCommit: true },
       )
     } catch (error: any) {
@@ -67,6 +70,7 @@ export const WishlistService = {
     }
 
     await cacheDel(wishlistCacheKey(userId))
+    await invalidateUserContextCache(userId)
     return WishlistService.getWishlist(userId)
   },
 
@@ -77,8 +81,8 @@ export const WishlistService = {
     const conn = await getConnectionFromPool()
     try {
       await conn.execute(
-        `DELETE FROM WISHLIST WHERE USER_ID=:uid AND PRODUCT_ID=:pid`,
-        { uid: userId, pid: productId },
+        `DELETE FROM WISHLIST WHERE USER_ID = :userId AND PRODUCT_ID = :productId`,
+        { userId, productId },
         { autoCommit: true },
       )
     } finally {
@@ -86,6 +90,7 @@ export const WishlistService = {
     }
 
     await cacheDel(wishlistCacheKey(userId))
+    await invalidateUserContextCache(userId)
     return WishlistService.getWishlist(userId)
   },
 }

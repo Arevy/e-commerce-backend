@@ -1,11 +1,13 @@
 # E-commerce Backend
 
-Backend GraphQL service for a storefront + admin e-commerce experience. It runs on
+Backend GraphQL service for a store front + admin e-commerce experience. It runs on
 Express, connects to Oracle Database for persistence, and optionally uses Redis
 (or a built-in memory fallback) for caching hot reads.
 
 - Supports catalog, cart, checkout, payments, wishlists, reviews, and address
   management flows required by both customer and admin surfaces.
+- Exposes a `getUserContext` aggregate that hydrates cart, wishlist, addresses,
+  and identity details in one call for the store front and support tools.
 - Dedicated `customerSupport` GraphQL namespace so support agents can audit and
   mutate every domain object without switching schemas.
 - Ships with SQL bootstrap + seed data so every resolver can be exercised out of
@@ -44,7 +46,7 @@ DB_PASSWORD=your_oracle_password
 DB_PASSWORD_NEW= # optional: supply when rotating an expired password
 DB_PASSWORD_ROTATE=false # set to true to let the API rotate an expired password
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3100
-DB_CONNECT_STRING=localhost:1521/ORCLCDB
+DB_CONNECT_STRING=oracle:1521/XEPDB1
 DB_POOL_MIN=1
 DB_POOL_MAX=4
 DB_POOL_INCREMENT=1
@@ -65,19 +67,34 @@ PORT=4000
 ```
 
 ## Oracle Setup
-1. Ensure an Oracle instance (e.g. `ORCLCDB`) is running and reachable.
-2. Connect as the application user and run `sql_script.txt` to recreate the
-   schema and seed data end-to-end:
+
+### Local container (recommended)
+1. Launch the bundled database: `docker compose up -d oracle`.
+2. Wait for the container to report healthy (`docker compose ps`).
+3. Seed the schema with `./scripts/seed-oracle.sh` from the repository root. The
+   script pipes `sql_script.txt` into `sqlplus`, rebuilding the schema and
+   sample data end-to-end.
+
+The container uses `gvenzl/oracle-xe:21-full`, exposes port `1521`, and sets the
+SYS password to `Password` by default (override via `ORACLE_SYS_PASSWORD`).
+Application credentials inherit `ORACLE_USER` / `ORACLE_PASSWORD` (`shopx` /
+`shopx` by default).
+
+### External instance
+1. Ensure an Oracle instance is running and reachable from the backend
+   container.
+2. Update `DB_CONNECT_STRING`, `DB_USER`, and `DB_PASSWORD` (or their `ORACLE_*`
+   counterparts) to match the target.
+3. Connect as the application user and run `sql_script.txt` to recreate the
+   schema and seed data as shown below:
 
    ```sql
    @sql_script.txt
    ```
 
-   The script first drops existing tables owned by the user (so it is safe to
-   re-run when you need a clean slate), then builds every table used by the
-   resolvers and populates sample categories, products, users, addresses, carts,
-   wishlists, reviews, orders, order items, and payments so each GraphQL
-   mutation/query can be exercised immediately.
+   The script first drops existing tables owned by the user (safe to re-run
+   when you need a clean slate), then builds every table used by the resolvers
+   and populates sample data.
 
 ### Handling Expired Oracle Passwords
 - When Oracle forces a password rotation, first set `DB_PASSWORD` to the current
@@ -118,9 +135,14 @@ enabled in non-production environments.
 
 ## Redis Usage
 - The service attempts to connect to Redis on launch. When unreachable or when
-  `REDIS_DISABLED=true`, a local memory takes over the role of the cache for the cart, wishlist and now CMS pages.
-- Keys are kept by default for 60 seconds and are automatically invalidated after
-move operations (including for the CMS service).
+  `REDIS_DISABLED=true`, a local memory map takes over caching for carts,
+  wishlists, CMS pages, and the new aggregated user-context payloads.
+- Keys follow the pattern `cart:{userId}`, `wishlist:{userId}`, and
+  `user-context:{userId}`. They are invalidated automatically after any mutation
+  that changes the underlying state.
+- TTL defaults to 60 seconds for carts, 120 seconds for wishlists, and the user
+  context reuses the wishlist TTL. Adjust in the respective services if you
+  need tighter or looser caching.
 
 ## Database Footprint
 The schema provisions:
@@ -139,7 +161,7 @@ A comprehensive, domain-by-domain catalogue of queries and mutations (with sampl
 payloads driven by the seeded data) lives in `docs/graphql-operations.md`. It now
 also covers the `customerSupport` root field so agents can trial the dedicated
 admin surface without reverse engineering bespoke payloads. Use it as the
-definitive playbook when testing storefront and admin interactions.
+definitive playbook when testing store front and admin interactions.
 
 For quick smoke tests you can also issue cURL requests:
 
@@ -174,5 +196,6 @@ curl -X POST http://localhost:4000/graphql \
 
 - The provided multi-stage `Dockerfile` builds a production-ready image, installing `libaio1` and configuring `/opt/oracle/instantclient` so the Instant Client libraries are discoverable at runtime. It keeps `npm_config_oracle_skip_postinstall=1` to bypass the Oracle driver's postinstall script inside CI/build environments.
 - When using the monorepo-level `docker-compose.yml`, create an `oracle-client/` directory alongside that file and extract the Oracle Instant Client (Basic or Basic Lite) into it. Compose mounts the folder read-only into `/opt/oracle/instantclient` and publishes a `host.docker.internal` entry so the container can resolve your Oracle host across macOS, Windows, and Linux.
-- Before starting the container, provide `ORACLE_USER`, `ORACLE_PASSWORD`, and (optionally) `ORACLE_CONNECT_STRING` via environment variables or a `.env` file so the API can authenticate against the database. `CORS_ALLOWED_ORIGINS` should include the admin portal (`http://localhost:3000`) and storefront (`http://localhost:3100`).
-- Build and run the service with `docker compose up --build backend` from the repository root, or `docker compose up --build` to start the entire stack (Redis, backend, storefront, admin portal).
+- The compose file provisions Oracle XE (`oracle` service) and Redis alongside the backend. Start the dependencies with `docker compose up -d oracle redis`, then run `./scripts/seed-oracle.sh` before launching the API or frontends.
+- Provide `ORACLE_USER`, `ORACLE_PASSWORD`, and (optionally) `ORACLE_CONNECT_STRING` via environment variables or a `.env` file so the API can authenticate against the database. `CORS_ALLOWED_ORIGINS` should include the admin portal (`http://localhost:3000`) and store front (`http://localhost:3100`).
+- Build and run the service with `docker compose up --build backend` from the repository root, or `docker compose up --build` to start the entire stack (Oracle, Redis, backend, store front, admin portal).

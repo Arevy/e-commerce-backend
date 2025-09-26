@@ -288,7 +288,66 @@ mutation DeleteBobAddress($addressId: ID!) {
 }
 ```
 
-## 7. Orders
+## 7. User Context Aggregate
+### Verify Query
+```graphql
+query AliceContext {
+  getUserContext(userId: 1) {
+    user {
+      id
+      email
+      name
+      role
+    }
+    cart {
+      total
+      items {
+        quantity
+        product {
+          id
+          name
+          price
+        }
+      }
+    }
+    wishlist {
+      products {
+        id
+        name
+        price
+      }
+    }
+    addresses {
+      id
+      street
+      city
+      postalCode
+      country
+    }
+  }
+}
+```
+The response is cached under `user-context:1` in Redis (120-second TTL) and
+hydrates the store front immediately after login.
+
+### Customer Support Variant
+```graphql
+query SupportUserContext {
+  customerSupport {
+    userContext(userId: 1) {
+      user { id email role }
+      cart { total items { product { name } quantity } }
+      wishlist { products { id name } }
+      addresses { id street city postalCode country }
+    }
+  }
+}
+```
+Use this call in the admin portal when investigating customer issues—the
+payload mirrors the shopper-facing aggregate but stays scoped to the
+`customerSupport` namespace.
+
+## 8. Orders
 ### Verify Query
 ```graphql
 query AliceOrders {
@@ -335,7 +394,7 @@ mutation RemoveOrder($orderId: ID!) {
 ```
 `deleteOrder` also cleans up `ORDER_ITEMS` via cascading logic in the service.
 
-## 8. Payments
+## 9. Payments
 ### Verify Query
 ```graphql
 query PaymentDetails {
@@ -378,7 +437,7 @@ mutation DeletePayment($paymentId: ID!) {
 }
 ```
 
-## 9. Miscellaneous Checks
+## 10. Miscellaneous Checks
 - After any mutation, re-run the corresponding query to confirm the state change
   (e.g., `getCart`, `getWishlist`, `getOrders`).
 - When testing cache-backed flows (cart/wishlist), hit the same query twice—the
@@ -386,7 +445,7 @@ mutation DeletePayment($paymentId: ID!) {
 - For regressions or future features, extend this document with new scenarios so
   QA and frontend teams retain a single source of truth.
 
-## 10. Customer Support Namespace
+## 11. Customer Support Namespace
 The `customerSupport` field exposes a grouped set of resolvers tailored for
 support agents. Every query/mutation available to shoppers is mirrored here so
 agents can audit or remediate data without juggling user-specific IDs. Because

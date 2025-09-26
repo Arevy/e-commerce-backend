@@ -7,6 +7,7 @@ import { PaymentService } from '../../services/paymentService'
 import { CartService } from '../../services/cartService'
 import { WishlistService } from '../../services/wishlistService'
 import { ReviewService } from '../../services/reviewService'
+import { UserContextService } from '../../services/userContextService'
 import { validateInput } from '../../utils/validateInput'
 import { UserRole } from '../../models/user'
 
@@ -110,6 +111,9 @@ export const customerSupportResolver = {
 
     wishlist: (_: unknown, { userId }: { userId: string }) =>
       WishlistService.getWishlist(toOptionalNumber(userId) ?? 0),
+
+    userContext: (_: unknown, { userId }: { userId: string }) =>
+      UserContextService.getContext(toOptionalNumber(userId) ?? 0),
 
     reviews: (_: unknown, args: { productId?: string; userId?: string }) =>
       ReviewService.getAll({

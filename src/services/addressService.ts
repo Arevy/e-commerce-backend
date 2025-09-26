@@ -2,6 +2,7 @@
 import oracledb from 'oracledb'
 import { getConnectionFromPool } from '../config/database'
 import { Address } from '../models/address'
+import { invalidateUserContextCache } from './userContextCache'
 
 const mapAddressRow = (row: any[]): Address => ({
   id: row[0],
@@ -38,8 +39,8 @@ export const AddressService = {
       const params: Record<string, unknown> = {}
 
       if (userId !== undefined) {
-        query += ' WHERE USER_ID = :uid'
-        params.uid = userId
+        query += ' WHERE USER_ID = :userId'
+        params.userId = userId
       }
 
       query += ' ORDER BY ID'
@@ -56,9 +57,9 @@ export const AddressService = {
     try {
       const res = await conn.execute(
         `SELECT ID, USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY
-           FROM ADDRESSES WHERE USER_ID=:uid
+           FROM ADDRESSES WHERE USER_ID = :userId
           ORDER BY ID`,
-        { uid: userId },
+        { userId },
       )
       return (res.rows || []).map((row: any[]) => mapAddressRow(row))
     } finally {
@@ -78,19 +79,19 @@ export const AddressService = {
     try {
       const res = await conn.execute(
         `INSERT INTO ADDRESSES (USER_ID, STREET, CITY, POSTAL_CODE, COUNTRY)
-         VALUES (:uid,:str,:cit,:zip,:cn)
-         RETURNING ID INTO :aid`,
+         VALUES (:userId, :street, :city, :postalCode, :country)
+         RETURNING ID INTO :addressId`,
         {
-          uid: userId,
-          str: street,
-          cit: city,
-          zip: postalCode,
-          cn: country,
-          aid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+          userId,
+          street,
+          city,
+          postalCode,
+          country,
+          addressId: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
         },
         { autoCommit: true },
       )
-      addressId = (res.outBinds as any).aid[0]
+      addressId = (res.outBinds as any).addressId[0]
     } finally {
       await conn.close()
     }
@@ -103,6 +104,7 @@ export const AddressService = {
     if (!created) {
       throw new Error('Failed to load created address')
     }
+    await invalidateUserContextCache(userId)
     return created
   },
 
@@ -155,10 +157,12 @@ export const AddressService = {
     if (!updated) {
       throw new Error(`Address ${addressId} not found after update`)
     }
+    await invalidateUserContextCache(updated.userId)
     return updated
   },
 
   delete: async (addressId: number): Promise<boolean> => {
+    const existing = await fetchAddressById(addressId)
     const conn = await getConnectionFromPool()
     try {
       const res = await conn.execute(
@@ -166,7 +170,11 @@ export const AddressService = {
         { aid: addressId },
         { autoCommit: true },
       )
-      return (res.rowsAffected || 0) > 0
+      const deleted = (res.rowsAffected || 0) > 0
+      if (deleted && existing) {
+        await invalidateUserContextCache(existing.userId)
+      }
+      return deleted
     } finally {
       await conn.close()
     }

@@ -1,6 +1,8 @@
 import { getConnectionFromPool } from '../config/database'
 import { cacheDel, cacheGet, cacheSet } from '../config/redis'
 import { Cart, CartItem } from '../models/cart'
+import { logger } from '../utils/logger'
+import { invalidateUserContextCache } from './userContextCache'
 
 const cartCacheKey = (userId: number) => `cart:${userId}`
 
@@ -26,6 +28,7 @@ const buildCartResponse = (userId: number, rows: any[]): Cart => {
 
 export const CartService = {
   getCart: async (userId: number): Promise<Cart> => {
+    logger.debug('CartService.getCart called', { userId })
     const cached = await cacheGet<Cart>(cartCacheKey(userId))
     if (cached) {
       return cached
@@ -42,8 +45,8 @@ export const CartService = {
                 p.CATEGORY_ID
            FROM CART_ITEMS ci
            JOIN PRODUCTS p ON p.ID = ci.PRODUCT_ID
-          WHERE ci.USER_ID = :uid`,
-        { uid: userId },
+          WHERE ci.USER_ID = :userId`,
+        { userId },
       )
 
       const cart = buildCartResponse(
@@ -66,12 +69,12 @@ export const CartService = {
     try {
       await conn.execute(
         `MERGE INTO CART_ITEMS c USING DUAL
-           ON (c.USER_ID=:uid AND c.PRODUCT_ID=:pid)
+           ON (c.USER_ID = :userId AND c.PRODUCT_ID = :productId)
          WHEN MATCHED THEN
-           UPDATE SET c.QUANTITY = c.QUANTITY + :qty
+           UPDATE SET c.QUANTITY = c.QUANTITY + :quantity
          WHEN NOT MATCHED THEN
-           INSERT (USER_ID, PRODUCT_ID, QUANTITY) VALUES (:uid,:pid,:qty)`,
-        { uid: userId, pid: productId, qty: quantity },
+           INSERT (USER_ID, PRODUCT_ID, QUANTITY) VALUES (:userId, :productId, :quantity)`,
+        { userId, productId, quantity },
         { autoCommit: true },
       )
     } finally {
@@ -79,6 +82,7 @@ export const CartService = {
     }
 
     await cacheDel(cartCacheKey(userId))
+    await invalidateUserContextCache(userId)
     return CartService.getCart(userId)
   },
 
@@ -86,8 +90,8 @@ export const CartService = {
     const conn = await getConnectionFromPool()
     try {
       await conn.execute(
-        `DELETE FROM CART_ITEMS WHERE USER_ID=:uid AND PRODUCT_ID=:pid`,
-        { uid: userId, pid: productId },
+        `DELETE FROM CART_ITEMS WHERE USER_ID = :userId AND PRODUCT_ID = :productId`,
+        { userId, productId },
         { autoCommit: true },
       )
     } finally {
@@ -95,6 +99,7 @@ export const CartService = {
     }
 
     await cacheDel(cartCacheKey(userId))
+    await invalidateUserContextCache(userId)
     return CartService.getCart(userId)
   },
 
@@ -102,8 +107,8 @@ export const CartService = {
     const conn = await getConnectionFromPool()
     try {
       await conn.execute(
-        `DELETE FROM CART_ITEMS WHERE USER_ID=:uid`,
-        { uid: userId },
+        `DELETE FROM CART_ITEMS WHERE USER_ID = :userId`,
+        { userId },
         { autoCommit: true },
       )
     } finally {
@@ -111,6 +116,7 @@ export const CartService = {
     }
 
     await cacheDel(cartCacheKey(userId))
+    await invalidateUserContextCache(userId)
     return true
   },
 }

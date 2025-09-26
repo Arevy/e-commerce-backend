@@ -47,8 +47,8 @@ const fetchOrderWithItems = async (orderId: number) => {
     const orderRes = await conn.execute(
       `SELECT ID, USER_ID, TOTAL, STATUS, TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS CREATED_AT,
               TO_CHAR(UPDATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS UPDATED_AT
-         FROM ORDERS WHERE ID = :oid`,
-      { oid: orderId },
+         FROM ORDERS WHERE ID = :orderId`,
+      { orderId },
     )
     if (!orderRes.rows?.length) {
       return null
@@ -56,8 +56,8 @@ const fetchOrderWithItems = async (orderId: number) => {
     const order = mapOrderRow(orderRes.rows[0] as any[])
 
     const itemsRes = await conn.execute(
-      `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE FROM ORDER_ITEMS WHERE ORDER_ID = :oid`,
-      { oid: orderId },
+      `SELECT ORDER_ID, PRODUCT_ID, QUANTITY, PRICE FROM ORDER_ITEMS WHERE ORDER_ID = :orderId`,
+      { orderId },
     )
     const products = (itemsRes.rows || []).map((row: any[]) =>
       mapOrderItemRow(row),
@@ -138,26 +138,26 @@ export const OrderService = {
 
       const resOrder = await conn.execute(
         `INSERT INTO ORDERS (USER_ID, TOTAL, STATUS, CREATED_AT, UPDATED_AT)
-         VALUES (:uid, :tot, 'PENDING', SYSTIMESTAMP, SYSTIMESTAMP)
-         RETURNING ID INTO :oid`,
+         VALUES (:userId, :totalAmount, 'PENDING', SYSTIMESTAMP, SYSTIMESTAMP)
+         RETURNING ID INTO :orderId`,
         {
-          uid: userId,
-          tot: total,
-          oid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+          userId,
+          totalAmount: total,
+          orderId: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
         },
         { autoCommit: false },
       )
-      orderId = (resOrder.outBinds as any).oid[0]
+      orderId = (resOrder.outBinds as any).orderId[0]
 
       for (const p of products) {
         await conn.execute(
           `INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
-           VALUES (:oid, :pid, :qty, :pr)`,
+           VALUES (:orderId, :productId, :quantity, :price)`,
           {
-            oid: orderId,
-            pid: p.productId,
-            qty: p.quantity,
-            pr: p.price,
+            orderId,
+            productId: p.productId,
+            quantity: p.quantity,
+            price: p.price,
           },
           { autoCommit: false },
         )
@@ -191,8 +191,8 @@ export const OrderService = {
     const conn = await getConnectionFromPool()
     try {
       const res = await conn.execute(
-        `UPDATE ORDERS SET STATUS = :st, UPDATED_AT = SYSTIMESTAMP WHERE ID = :oid`,
-        { st: status, oid: orderId },
+        `UPDATE ORDERS SET STATUS = :newStatus, UPDATED_AT = SYSTIMESTAMP WHERE ID = :orderId`,
+        { newStatus: status, orderId },
         { autoCommit: true },
       )
       return res.rowsAffected === 1
@@ -208,13 +208,13 @@ export const OrderService = {
     const conn = await getConnectionFromPool()
     try {
       await conn.execute(
-        `DELETE FROM ORDER_ITEMS WHERE ORDER_ID = :oid`,
-        { oid: orderId },
+        `DELETE FROM ORDER_ITEMS WHERE ORDER_ID = :orderId`,
+        { orderId },
         { autoCommit: false },
       )
       const res = await conn.execute(
-        `DELETE FROM ORDERS WHERE ID = :oid`,
-        { oid: orderId },
+        `DELETE FROM ORDERS WHERE ID = :orderId`,
+        { orderId },
         { autoCommit: false },
       )
       await conn.commit()

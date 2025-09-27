@@ -1,6 +1,5 @@
 import express from 'express'
 import type { Request, Response } from 'express'
-import { graphqlHTTP } from 'express-graphql'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import type { GraphQLError } from 'graphql'
 import { typeDefs } from './graphql/schema'
@@ -22,6 +21,8 @@ import { connectRedis, disconnectRedis } from './config/redis'
 import { SessionService, parseSessionCookie } from './services/sessionService'
 import { ProductService } from './services/productService'
 import type { GraphQLContext } from './graphql/context'
+import { formatGraphQLError } from './utils/graphqlErrorFormatter'
+import { createGraphqlHandler } from './middleware/createGraphqlHandler'
 
 const DEFAULT_LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:3100']
 
@@ -156,20 +157,13 @@ export const startServer = async () => {
 
   app.use(
     '/graphql',
-    graphqlHTTP(async (req, res) => {
+    createGraphqlHandler(async (req, res) => {
       const context = await buildContext(req as Request, res as Response)
       return {
         schema: executableSchema,
         graphiql: true,
         context,
-        customFormatErrorFn: (error: GraphQLError) => {
-          logger.error(`[GraphQL Error] ${error.message}`)
-          return {
-            message: error.message,
-            locations: error.locations,
-            path: error.path,
-          }
-        },
+        customFormatErrorFn: (error: GraphQLError) => formatGraphQLError(error),
       }
     }),
   )

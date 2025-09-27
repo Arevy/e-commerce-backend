@@ -1,8 +1,9 @@
 import type { GraphQLContext } from '../context'
+import { UserFacingError } from '../../utils/graphqlErrorFormatter'
 
 export const ensureAuthenticated = (context: GraphQLContext) => {
   if (!context.session) {
-    throw new Error('Authentication required.')
+    throw new UserFacingError('Authentication required.', { code: 'UNAUTHENTICATED' })
   }
   return context.session
 }
@@ -13,7 +14,7 @@ export const ensureSessionMatchesUser = (
 ) => {
   const session = ensureAuthenticated(context)
   if (session.userId !== userId) {
-    throw new Error('You are not authorized to perform this action.')
+    throw new UserFacingError('You are not authorized to perform this action.', { code: 'FORBIDDEN' })
   }
   return session
 }

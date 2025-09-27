@@ -3,6 +3,7 @@ import { SessionService } from '../../services/sessionService'
 import { UserContextService } from '../../services/userContextService'
 import type { GraphQLContext } from '../context'
 import { RegisterArgs, LoginArgs } from '../types/args'
+import { UserFacingError } from '../../utils/graphqlErrorFormatter'
 
 export const userResolver = {
   Query: {
@@ -44,12 +45,16 @@ export const userResolver = {
     ) => {
       const impersonation = await SessionService.redeemImpersonationTicket(token)
       if (!impersonation) {
-        throw new Error('Impersonation token is invalid or has expired.')
+        throw new UserFacingError('Impersonation token is invalid or has expired.', {
+          code: 'IMPERSONATION_INVALID',
+        })
       }
 
       const user = await UserService.getById(impersonation.userId)
       if (!user) {
-        throw new Error('Unable to impersonate missing user.')
+        throw new UserFacingError('Unable to impersonate the requested user.', {
+          code: 'IMPERSONATION_MISSING_TARGET',
+        })
       }
 
       const session = await SessionService.createSession({

@@ -7,6 +7,7 @@ import { getConnectionFromPool } from '../config/database'
 import { logger } from '../utils/logger'
 import { User, UserRole } from '../models/user'
 import { invalidateUserContextCache } from './userContextCache'
+import { UserFacingError } from '../utils/graphqlErrorFormatter'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'
 
@@ -116,7 +117,9 @@ export const UserService = {
         `SELECT 1 FROM USERS WHERE EMAIL = :email`,
         { email },
       )
-      if (dup.rows.length) throw new Error('Email already registered')
+      if (dup.rows.length) {
+        throw new UserFacingError('Email already registered.', { code: 'EMAIL_ALREADY_REGISTERED' })
+      }
 
       // 2) hash and insert
       const hash = await bcrypt.hash(password, 10)
@@ -135,7 +138,13 @@ export const UserService = {
       const id = result.outBinds.id[0]
       return { id, email, name, role: 'CUSTOMER' as UserRole }
     } catch (err) {
-      logger.error('Error in UserService.register:', err)
+      if (err instanceof UserFacingError) {
+        logger.warn(`UserService.register: ${err.userMessage}`)
+        throw err
+      }
+
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error(`Error in UserService.register: ${message}`)
       throw err
     } finally {
       await conn.close()
@@ -149,16 +158,30 @@ export const UserService = {
         `SELECT ID, PASSWORD, NAME, ROLE FROM USERS WHERE EMAIL = :email`,
         { email },
       )
-      if (!result.rows.length) throw new Error('User not found')
+      if (!result.rows.length) {
+        throw new UserFacingError('Invalid email or password.', {
+          code: 'INVALID_CREDENTIALS',
+        })
+      }
 
       const [id, hash, name, role] = result.rows[0]
       const valid = await bcrypt.compare(password, hash)
-      if (!valid) throw new Error('Invalid password')
+      if (!valid) {
+        throw new UserFacingError('Invalid email or password.', {
+          code: 'INVALID_CREDENTIALS',
+        })
+      }
 
       const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '1h' })
       return { token, user: { id, email, name, role } }
     } catch (err) {
-      logger.error('Error in UserService.login:', err)
+      if (err instanceof UserFacingError) {
+        logger.warn(`UserService.login: ${err.userMessage}`)
+        throw err
+      }
+
+      const message = err instanceof Error ? err.message : String(err)
+      logger.error(`Error in UserService.login: ${message}`)
       throw err
     } finally {
       await conn.close()

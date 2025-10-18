@@ -232,12 +232,12 @@ export const OrderService = {
     }
   },
 
-  getAll: async (filters?: {
+  getAllWithCount: async (filters?: {
     userId?: number
     status?: string
     limit?: number
     offset?: number
-  }) => {
+  }): Promise<{ items: any[]; total: number }> => {
     const conn = await getConnectionFromPool()
     try {
       const where: string[] = []
@@ -263,33 +263,49 @@ export const OrderService = {
 
       query += ' ORDER BY CREATED_AT DESC'
 
+      const countQuery = `SELECT COUNT(*) FROM ORDERS${where.length ? ` WHERE ${where.join(' AND ')}` : ''}`
+      const countRes = await conn.execute(countQuery, params)
+      const total = Number(countRes.rows?.[0]?.[0] ?? 0)
+
+      const queryParams = { ...params }
+
       if (filters?.offset !== undefined) {
         query += ' OFFSET :offset ROWS'
-        params.offset = filters.offset
+        queryParams.offset = filters.offset
       }
       if (filters?.limit !== undefined) {
         query += ' FETCH NEXT :limit ROWS ONLY'
-        params.limit = filters.limit
+        queryParams.limit = filters.limit
       }
 
-      const res = await conn.execute(query, params)
+      const res = await conn.execute(query, queryParams)
       const orders = (res.rows || []).map((row: any[]) => mapOrderRow(row))
       if (!orders.length) {
-        return []
+        return { items: [], total }
       }
 
       const hydrated = await attachItems(conn, orders)
-      return hydrated
+      return { items: hydrated, total }
     } catch (err) {
       if (err instanceof Error && err.message.includes('ORA-00942')) {
         logger.warn('ORDERS table not found. Returning empty order list for compatibility.')
-        return []
+        return { items: [], total: 0 }
       }
       logger.error(`Error in OrderService.getAll: ${err}`)
       throw err
     } finally {
       await conn.close()
     }
+  },
+
+  getAll: async (filters?: {
+    userId?: number
+    status?: string
+    limit?: number
+    offset?: number
+  }) => {
+    const result = await OrderService.getAllWithCount(filters)
+    return result.items
   },
 
   getByUser: async (userId: number) => OrderService.getAll({ userId }),

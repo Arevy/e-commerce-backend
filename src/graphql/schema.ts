@@ -90,6 +90,11 @@ export const typeDefs = /* GraphQL */ `
     products: [OrderProduct!]!
   }
 
+  type OrderConnection {
+    items: [Order!]!
+    totalCount: Int!
+  }
+
   ###########
   # Cart    #
   ###########
@@ -356,6 +361,12 @@ export const typeDefs = /* GraphQL */ `
       limit: Int
       offset: Int
     ): [Order!]!
+    ordersConnection(
+      userId: ID
+      status: String
+      limit: Int
+      offset: Int
+    ): OrderConnection!
     order(id: ID!): Order
 
     addresses(userId: ID): [Address!]!

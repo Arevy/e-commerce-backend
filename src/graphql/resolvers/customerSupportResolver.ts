@@ -114,6 +114,22 @@ export const customerSupportResolver = {
         offset: args.offset,
       }),
 
+    ordersConnection: (
+      _: unknown,
+      args: {
+        userId?: string
+        status?: string
+        limit?: number
+        offset?: number
+      },
+    ) =>
+      OrderService.getAllWithCount({
+        userId: toOptionalNumber(args.userId ?? undefined),
+        status: args.status?.trim().toUpperCase() || undefined,
+        limit: args.limit,
+        offset: args.offset,
+      }).then(({ items, total }) => ({ items, totalCount: total })),
+
     order: (_: unknown, { id }: { id: string }) =>
       OrderService.getById(toOptionalNumber(id) ?? 0),
 

@@ -61,11 +61,14 @@ SESSION_COOKIE_NAME=sid
 SUPPORT_SESSION_COOKIE_NAME=support_sid
 SESSION_TTL_SECONDS=604800
 IMPERSONATION_TTL_SECONDS=60
+# Uncomment to allow http://localhost cookies while running `next start`
+# FORCE_INSECURE_SESSION_COOKIES=true
 
 - `SESSION_COOKIE_NAME` — Shopper session cookie. Defaults to `sid`.
 - `SUPPORT_SESSION_COOKIE_NAME` — Dedicated cookie for support/admin sessions (prevents clashes with shopper cookies). Defaults to `support_sid`.
 - `SESSION_TTL_SECONDS` — TTL for sessions (in seconds). Defaults to 7 days.
 - `IMPERSONATION_TTL_SECONDS` — TTL for impersonation tickets (in seconds). Defaults to 60 seconds.
+- `FORCE_INSECURE_SESSION_COOKIES` — Set to `true` to drop the `Secure` flag on session cookies. Handy when running the production build locally over HTTP.
 
 # Auth
 JWT_SECRET=replace_me_with_a_real_secret

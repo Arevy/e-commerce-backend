@@ -59,6 +59,17 @@ export const typeDefs = /* GraphQL */ `
     price: Float!
   }
 
+  input UpdateUserProfileInput {
+    name: String
+    email: String
+    currentPassword: String!
+  }
+
+  type UpdateUserProfilePayload {
+    user: User!
+    message: String!
+  }
+
   input ProductImageUploadInput {
     filename: String!
     mimeType: String!
@@ -262,6 +273,8 @@ export const typeDefs = /* GraphQL */ `
     login(email: String!, password: String!): AuthPayload!
     logout: Boolean!
     redeemImpersonation(token: String!): User!
+    updateUserProfile(input: UpdateUserProfileInput!): UpdateUserProfilePayload!
+    changeUserPassword(currentPassword: String!, newPassword: String!): Boolean!
 
     # Orders
     createOrder(userId: ID!, products: [OrderProductInput!]!): Order!
@@ -335,6 +348,7 @@ export const typeDefs = /* GraphQL */ `
 
     categories(limit: Int, offset: Int, name: String): [Category!]!
     category(id: ID!): Category
+    viewer: User!
 
     orders(
       userId: ID

@@ -10,6 +10,28 @@ const IMPERSONATION_TTL_SECONDS = Number(process.env.IMPERSONATION_TTL_SECONDS |
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sid'
 export const SUPPORT_SESSION_COOKIE_NAME = process.env.SUPPORT_SESSION_COOKIE_NAME || 'support_sid'
 
+const parseBoolean = (value: string | undefined, fallback: boolean) => {
+  if (!value) {
+    return fallback
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false
+  }
+  return fallback
+}
+
+const NODE_ENV = process.env.NODE_ENV || 'development'
+const FORCE_INSECURE_SESSION_COOKIES = parseBoolean(
+  process.env.FORCE_INSECURE_SESSION_COOKIES,
+  false,
+)
+const shouldUseSecureCookies = NODE_ENV === 'production' && !FORCE_INSECURE_SESSION_COOKIES
+
 export interface SessionRecord {
   id: string
   userId: number
@@ -47,7 +69,6 @@ const setCookieHeader = (res: Response, value: string) => {
 }
 
 const buildSessionCookie = (sessionId: string, cookieName: string) => {
-  const isProduction = process.env.NODE_ENV === 'production'
   const maxAge = SESSION_TTL_SECONDS
   const cookieParts = [
     `${cookieName}=${sessionId}`,
@@ -57,7 +78,7 @@ const buildSessionCookie = (sessionId: string, cookieName: string) => {
     'SameSite=Lax',
   ]
 
-  if (isProduction) {
+  if (shouldUseSecureCookies) {
     cookieParts.push('Secure')
   }
 
@@ -65,9 +86,8 @@ const buildSessionCookie = (sessionId: string, cookieName: string) => {
 }
 
 const buildExpiredCookie = (cookieName: string) => {
-  const isProduction = process.env.NODE_ENV === 'production'
   const parts = [`${cookieName}=`, 'Path=/', 'Max-Age=0', 'HttpOnly', 'SameSite=Lax']
-  if (isProduction) {
+  if (shouldUseSecureCookies) {
     parts.push('Secure')
   }
   return parts.join('; ')
@@ -195,6 +215,34 @@ export const SessionService = {
 
     await cacheDel(impersonationKey(token))
     return record
+  },
+
+  async updateSessionMetadata(
+    sessionId: string,
+    updates: {
+      email?: string
+      name?: string | null
+    },
+  ): Promise<SessionRecord | null> {
+    const session = await cacheGet<SessionRecord>(sessionKey(sessionId))
+    if (!session) {
+      return null
+    }
+
+    const next: SessionRecord = {
+      ...session,
+      email: updates.email ?? session.email,
+      name: updates.name !== undefined ? updates.name : session.name,
+    }
+
+    await cacheSet(sessionKey(sessionId), next, SESSION_TTL_SECONDS)
+
+    const currentSessions = (await cacheGet<string[]>(userSessionsKey(next.userId))) ?? []
+    if (currentSessions.length) {
+      await touchUserSessionsBucket(next.userId, currentSessions)
+    }
+
+    return next
   },
 }
 

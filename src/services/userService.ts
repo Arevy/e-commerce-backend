@@ -11,6 +11,17 @@ import { UserFacingError } from '../utils/graphqlErrorFormatter'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'
 
+const fetchPasswordHash = async (conn: any, id: number): Promise<string> => {
+  const result = await conn.execute(
+    `SELECT PASSWORD FROM USERS WHERE ID = :id`,
+    { id },
+  )
+  if (!result.rows?.length) {
+    throw new UserFacingError('User not found.', { code: 'USER_NOT_FOUND' })
+  }
+  return result.rows[0][0]
+}
+
 export const UserService = {
   getAll: async (filters?: {
     email?: string
@@ -243,6 +254,16 @@ export const UserService = {
       const params: Record<string, unknown> = { id }
 
       if (updates.email !== undefined) {
+        const duplicate = await conn.execute(
+          `SELECT 1 FROM USERS WHERE LOWER(EMAIL) = LOWER(:email) AND ID <> :id`,
+          { email: updates.email, id },
+        )
+        if (duplicate.rows?.length) {
+          throw new UserFacingError('Email already registered.', {
+            code: 'EMAIL_ALREADY_REGISTERED',
+          })
+        }
+
         fields.push('EMAIL = :email')
         params.email = updates.email
       }
@@ -285,6 +306,51 @@ export const UserService = {
     }
     await invalidateUserContextCache(id)
     return updated
+  },
+
+  changePassword: async (
+    id: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> => {
+    const conn = await getConnectionFromPool()
+    try {
+      const existingHash = await fetchPasswordHash(conn, id)
+      const matches = await bcrypt.compare(currentPassword, existingHash)
+      if (!matches) {
+        throw new UserFacingError('Current password is incorrect.', {
+          code: 'INVALID_CREDENTIALS',
+        })
+      }
+
+      const nextHash = await bcrypt.hash(newPassword, 10)
+      await conn.execute(
+        `UPDATE USERS SET PASSWORD = :hash WHERE ID = :id`,
+        { hash: nextHash, id },
+        { autoCommit: true },
+      )
+    } finally {
+      await conn.close()
+    }
+
+    await invalidateUserContextCache(id)
+    return true
+  },
+
+  verifyPassword: async (id: number, candidate: string): Promise<boolean> => {
+    const conn = await getConnectionFromPool()
+    try {
+      const existingHash = await fetchPasswordHash(conn, id)
+      return bcrypt.compare(candidate, existingHash)
+    } catch (err) {
+      if (err instanceof UserFacingError) {
+        throw err
+      }
+      logger.error('Error in UserService.verifyPassword:', err)
+      throw err
+    } finally {
+      await conn.close()
+    }
   },
 
   remove: async (id: number): Promise<boolean> => {

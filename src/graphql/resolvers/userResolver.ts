@@ -2,8 +2,9 @@ import { UserService } from '../../services/userService'
 import { SessionService } from '../../services/sessionService'
 import { UserContextService } from '../../services/userContextService'
 import type { GraphQLContext } from '../context'
-import { RegisterArgs, LoginArgs } from '../types/args'
+import { RegisterArgs, LoginArgs, UpdateUserProfileArgs } from '../types/args'
 import { UserFacingError } from '../../utils/graphqlErrorFormatter'
+import { ensureAuthenticated } from '../utils/auth'
 
 export const userResolver = {
   Query: {
@@ -73,6 +74,105 @@ export const userResolver = {
         name: user.name,
         role: user.role,
       }
+    },
+
+    updateUserProfile: async (
+      _: unknown,
+      { input }: UpdateUserProfileArgs,
+      context: GraphQLContext,
+    ) => {
+      const session = ensureAuthenticated(context)
+
+      const updates: {
+        name?: string | null
+        email?: string
+      } = {}
+
+      if (Object.prototype.hasOwnProperty.call(input, 'name')) {
+        const name = input.name ?? ''
+        const trimmed = name.trim()
+        updates.name = trimmed.length ? trimmed : null
+      }
+
+      if (Object.prototype.hasOwnProperty.call(input, 'email')) {
+        if (typeof input.email !== 'string') {
+          throw new UserFacingError('Email address is required.', {
+            code: 'INVALID_EMAIL',
+          })
+        }
+        const email = input.email.trim()
+        if (!email) {
+          throw new UserFacingError('Email address is required.', {
+            code: 'INVALID_EMAIL',
+          })
+        }
+        updates.email = email
+      }
+
+      if (!Object.keys(updates).length) {
+        const existing = await UserService.getById(session.userId)
+        if (!existing) {
+          throw new UserFacingError('User not found.', { code: 'USER_NOT_FOUND' })
+        }
+        return {
+          user: existing,
+          message: 'No changes detected.',
+        }
+      }
+
+      const currentPassword = input.currentPassword?.trim() ?? ''
+      if (!currentPassword) {
+        throw new UserFacingError('Password confirmation is required to update your profile.', {
+          code: 'PASSWORD_REQUIRED',
+        })
+      }
+
+      const passwordMatches = await UserService.verifyPassword(session.userId, currentPassword)
+      if (!passwordMatches) {
+        throw new UserFacingError('Current password is incorrect.', {
+          code: 'INVALID_CREDENTIALS',
+        })
+      }
+
+      const updated = await UserService.update(session.userId, updates)
+
+      await SessionService.updateSessionMetadata(session.id, {
+        email: updated.email,
+        name: updated.name,
+      })
+
+      if (context.session) {
+        context.session.email = updated.email
+        context.session.name = updated.name
+      }
+
+      return {
+        user: updated,
+        message: 'Profile updated successfully.',
+      }
+    },
+
+    changeUserPassword: async (
+      _: unknown,
+      { currentPassword, newPassword }: { currentPassword: string; newPassword: string },
+      context: GraphQLContext,
+    ) => {
+      const session = ensureAuthenticated(context)
+
+      if (!newPassword || newPassword.length < 8) {
+        throw new UserFacingError('New password must be at least 8 characters long.', {
+          code: 'PASSWORD_TOO_SHORT',
+        })
+      }
+
+      await UserService.changePassword(session.userId, currentPassword, newPassword)
+
+      await SessionService.updateSessionMetadata(session.id, {
+        email: session.email,
+        name: session.name,
+      })
+
+      return true
     },
   },
 }

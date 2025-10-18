@@ -49,3 +49,16 @@ export interface LoginArgs {
   email: string
   password: string
 }
+
+export interface UpdateUserProfileArgs {
+  input: {
+    name?: string | null
+    email?: string | null
+    currentPassword: string
+  }
+}
+
+export interface ChangeUserPasswordArgs {
+  currentPassword: string
+  newPassword: string
+}

@@ -89,6 +89,15 @@ export const customerSupportResolver = {
     category: (_: unknown, { id }: { id: string }) =>
       CategoryService.getById(toOptionalNumber(id) ?? 0),
 
+    viewer: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      const session = ensureSupportSession(context)
+      const user = await UserService.getById(session.userId)
+      if (!user) {
+        throw new Error('Unable to resolve current support agent.')
+      }
+      return user
+    },
+
     orders: (
       _: unknown,
       args: {

@@ -24,7 +24,13 @@ import type { GraphQLContext } from './graphql/context'
 import { formatGraphQLError } from './utils/graphqlErrorFormatter'
 import { createGraphqlHandler } from './middleware/createGraphqlHandler'
 
-const DEFAULT_LOCAL_ORIGINS = ['http://localhost:3000', 'http://localhost:3100']
+const DEFAULT_LOCAL_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3100',
+  'http://localhost:5010',
+  'http://localhost:8082',
+  'http://127.0.0.1:8082',
+]
 
 const allowedOrigins = (() => {
   const raw = process.env.CORS_ALLOWED_ORIGINS?.trim()

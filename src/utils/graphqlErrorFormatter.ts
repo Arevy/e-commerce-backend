@@ -18,7 +18,11 @@ const isSafeMessage = (value: string): boolean => {
   }
 
   // Filter obvious JSON payloads or stack traces so we do not leak internals.
-  if (/\{\s*"?[a-z0-9_]+"?\s*:/i.test(trimmed) || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+  if (
+    /\{\s*"?[a-z0-9_]+"?\s*:/i.test(trimmed) ||
+    trimmed.startsWith('{') ||
+    trimmed.startsWith('[')
+  ) {
     return false
   }
 
@@ -33,7 +37,10 @@ export class UserFacingError extends Error {
   public readonly userMessage: string
   public readonly code?: string
 
-  constructor(message: string, options?: { code?: string; cause?: unknown; logMessage?: string }) {
+  constructor(
+    message: string,
+    options?: { code?: string; cause?: unknown; logMessage?: string },
+  ) {
     super(options?.logMessage ?? message)
     this.name = 'UserFacingError'
     this.userMessage = message
@@ -46,7 +53,10 @@ export class UserFacingError extends Error {
   }
 }
 
-const resolveMessage = (error: GraphQLError, options?: FormatterOptions): string => {
+const resolveMessage = (
+  error: GraphQLError,
+  options?: FormatterOptions,
+): string => {
   const original = error.originalError
 
   if (original instanceof UserFacingError) {
@@ -60,7 +70,11 @@ const resolveMessage = (error: GraphQLError, options?: FormatterOptions): string
     }
   }
 
-  if (error.message && error.message.trim() && error.message !== 'INTERNAL_SERVER_ERROR') {
+  if (
+    error.message &&
+    error.message.trim() &&
+    error.message !== 'INTERNAL_SERVER_ERROR'
+  ) {
     const candidate = error.message.trim()
     if (isSafeMessage(candidate)) {
       return candidate
@@ -70,12 +84,17 @@ const resolveMessage = (error: GraphQLError, options?: FormatterOptions): string
   return options?.fallbackMessage ?? GENERIC_MESSAGE
 }
 
-export const formatGraphQLError = (error: GraphQLError, options?: FormatterOptions) => {
+export const formatGraphQLError = (
+  error: GraphQLError,
+  options?: FormatterOptions,
+) => {
   const message = resolveMessage(error, options)
   const original = error.originalError
 
   if (original instanceof UserFacingError) {
-    logger.warn(`User facing error: ${original.userMessage}`)
+    logger.warn(
+      `User facing error: ${original.userMessage} - ${original.message}  - ${original.code} `,
+    )
   } else {
     const meta = {
       path: error.path,
@@ -90,7 +109,10 @@ export const formatGraphQLError = (error: GraphQLError, options?: FormatterOptio
     locations: error.locations,
     path: error.path,
     extensions: {
-      code: original instanceof UserFacingError ? original.code ?? 'USER_FACING_ERROR' : 'INTERNAL_SERVER_ERROR',
+      code:
+        original instanceof UserFacingError
+          ? (original.code ?? 'USER_FACING_ERROR')
+          : 'INTERNAL_SERVER_ERROR',
     },
   }
 }

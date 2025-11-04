@@ -28,8 +28,9 @@ const DEFAULT_LOCAL_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3100',
   'http://localhost:5010',
-  'http://localhost:8082',
+  'http://localhost:8081',
   'http://127.0.0.1:8082',
+  'http://127.0.0.1:8083',
 ]
 
 const allowedOrigins = (() => {
@@ -142,7 +143,10 @@ export const startServer = async () => {
     ],
   })
 
-  const buildContext = async (req: Request, res: Response): Promise<GraphQLContext> => {
+  const buildContext = async (
+    req: Request,
+    res: Response,
+  ): Promise<GraphQLContext> => {
     const preferSupport = (() => {
       const indicator = req.headers['x-shopx-support-session']
       if (!indicator) {
@@ -150,14 +154,18 @@ export const startServer = async () => {
       }
 
       if (Array.isArray(indicator)) {
-        return indicator.some((value) => value === '1' || value?.toLowerCase() === 'true')
+        return indicator.some(
+          (value) => value === '1' || value?.toLowerCase() === 'true',
+        )
       }
 
       return indicator === '1' || indicator.toLowerCase() === 'true'
     })()
 
     const sessionId = parseSessionCookie(req.headers.cookie, preferSupport)
-    const session = sessionId ? await SessionService.getSession(sessionId) : null
+    const session = sessionId
+      ? await SessionService.getSession(sessionId)
+      : null
     return { req, res, session }
   }
 

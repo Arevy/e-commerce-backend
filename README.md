@@ -71,7 +71,9 @@ IMPERSONATION_TTL_SECONDS=60
 - `FORCE_INSECURE_SESSION_COOKIES` — Set to `true` to drop the `Secure` flag on session cookies. Handy when running the production build locally over HTTP.
 
 # Auth
-JWT_SECRET=replace_me_with_a_real_secret
+JWT_SECRET=replace_me_with_a_real_secret # required – server will exit if missing
+# ENABLE_GRAPHIQL=true # optional override to force-enable the IDE
+# ENABLE_GRAPHQL_INTROSPECTION=true # optional override to re-enable introspection in locked-down envs
 
 # Redis connection (optional)
 REDIS_URL=redis://localhost:6379
@@ -92,6 +94,16 @@ JSON_BODY_LIMIT=5mb
   request.
 - `JSON_BODY_LIMIT` — Maximum body size accepted by `express.json()`. Increase
   this when sending larger base64-encoded images. Defaults to `5mb`.
+- `JWT_SECRET` — Mandatory signing key for JWT issuance. The API aborts startup
+  when it is not provided to avoid weak default secrets.
+- `ENABLE_GRAPHIQL` — Force GraphiQL on or off (`true`/`false`). Defaults to on
+  only outside production.
+- `ENABLE_GRAPHQL_INTROSPECTION` — Force GraphQL introspection on or off
+  (`true`/`false`). Defaults to disabled in production.
+- `CORS_ALLOWED_ORIGINS` — Supply a comma-separated allowlist. When `*` is
+  present, credentialed requests are blocked and a warning is logged. Explicitly
+  list trusted production domains instead. Sample values are commented near the
+  configuration helper in `src/server.ts`.
 
 ## Oracle Setup
 

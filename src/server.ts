@@ -1,7 +1,7 @@
 import express from 'express'
 import type { Request, Response } from 'express'
 import { makeExecutableSchema } from '@graphql-tools/schema'
-import type { GraphQLError } from 'graphql'
+import { NoSchemaIntrospectionCustomRule, type GraphQLError } from 'graphql'
 import { typeDefs } from './graphql/schema'
 import { logger } from './utils/logger'
 import { addressResolver } from './graphql/resolvers/addressResolver'
@@ -24,6 +24,9 @@ import type { GraphQLContext } from './graphql/context'
 import { formatGraphQLError } from './utils/graphqlErrorFormatter'
 import { createGraphqlHandler } from './middleware/createGraphqlHandler'
 
+const NODE_ENV = process.env.NODE_ENV || 'development'
+const isProduction = NODE_ENV === 'production'
+
 const DEFAULT_LOCAL_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3100',
@@ -33,10 +36,34 @@ const DEFAULT_LOCAL_ORIGINS = [
   'http://127.0.0.1:8083',
 ]
 
-const allowedOrigins = (() => {
+// Example production origins (uncomment and adjust when deploying):
+// const DEFAULT_PRODUCTION_ORIGINS = [
+//   'https://admin.yourdomain.tld',
+//   'https://storefront.yourdomain.tld',
+// ]
+
+const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
+  if (!value) {
+    return undefined
+  }
+  const normalized = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false
+  }
+  return undefined
+}
+
+const corsConfiguration = (() => {
   const raw = process.env.CORS_ALLOWED_ORIGINS?.trim()
   if (!raw) {
-    return [...DEFAULT_LOCAL_ORIGINS]
+    return {
+      origins: [...DEFAULT_LOCAL_ORIGINS],
+      hasWildcard: false,
+      allowCredentials: true,
+    }
   }
 
   const origins = raw
@@ -45,7 +72,14 @@ const allowedOrigins = (() => {
     .filter((origin) => origin.length > 0)
 
   if (origins.includes('*')) {
-    return ['*']
+    logger.warn(
+      'CORS_ALLOWED_ORIGINS contains "*". Allowing public, non-credentialed requests. Configure explicit origins for authenticated clients.',
+    )
+    return {
+      origins: ['*'],
+      hasWildcard: true,
+      allowCredentials: false,
+    }
   }
 
   const unique = new Set(origins)
@@ -55,10 +89,32 @@ const allowedOrigins = (() => {
     }
   })
 
-  return Array.from(unique)
+  return {
+    origins: Array.from(unique),
+    hasWildcard: false,
+    allowCredentials: true,
+  }
 })()
 
-const allowAnyOrigin = allowedOrigins.includes('*')
+const allowedOrigins = corsConfiguration.origins
+const allowAnyOrigin = corsConfiguration.hasWildcard
+const allowCredentials = corsConfiguration.allowCredentials
+
+const isGraphiqlEnabled = (() => {
+  const override = parseBooleanEnv(process.env.ENABLE_GRAPHIQL)
+  if (override !== undefined) {
+    return override
+  }
+  return !isProduction
+})()
+
+const isIntrospectionEnabled = (() => {
+  const override = parseBooleanEnv(process.env.ENABLE_GRAPHQL_INTROSPECTION)
+  if (override !== undefined) {
+    return override
+  }
+  return !isProduction
+})()
 
 export const startServer = async () => {
   const app = express()
@@ -70,8 +126,8 @@ export const startServer = async () => {
   app.use((req, res, next) => {
     const requestOrigin = req.headers.origin
 
-    if (allowAnyOrigin && requestOrigin) {
-      res.header('Access-Control-Allow-Origin', requestOrigin)
+    if (allowAnyOrigin) {
+      res.header('Access-Control-Allow-Origin', '*')
     } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
       res.header('Access-Control-Allow-Origin', requestOrigin)
     }
@@ -79,7 +135,9 @@ export const startServer = async () => {
     res.header('Vary', 'Origin')
     res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    res.header('Access-Control-Allow-Credentials', 'true')
+    if (allowCredentials) {
+      res.header('Access-Control-Allow-Credentials', 'true')
+    }
 
     if (req.method === 'OPTIONS') {
       res.sendStatus(204)
@@ -175,7 +233,10 @@ export const startServer = async () => {
       const context = await buildContext(req as Request, res as Response)
       return {
         schema: executableSchema,
-        graphiql: true,
+        graphiql: isGraphiqlEnabled,
+        validationRules: isIntrospectionEnabled
+          ? undefined
+          : [NoSchemaIntrospectionCustomRule],
         context,
         customFormatErrorFn: (error: GraphQLError) => formatGraphQLError(error),
       }

@@ -9,7 +9,15 @@ import { User, UserRole } from '../models/user'
 import { invalidateUserContextCache } from './userContextCache'
 import { UserFacingError } from '../utils/graphqlErrorFormatter'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET?.trim()
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET environment variable must be set before using authentication services.',
+    )
+  }
+  return secret
+})()
 
 const fetchPasswordHash = async (conn: any, id: number): Promise<string> => {
   const result = await conn.execute(

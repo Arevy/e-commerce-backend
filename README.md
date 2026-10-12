@@ -119,6 +119,10 @@ Authorized product operations accept `ProductImageUploadInput` with `filename`, 
 
 GraphQL `Product` and `CartProduct` expose `image { url filename mimeType updatedAt }`. Use the returned URL instead of assuming an `/uploads` directory. The public image route returns the stored MIME type and `Cache-Control: public, max-age=900, must-revalidate`. `PUBLIC_ASSET_BASE_URL` must be reachable by clients and any Next.js image optimizer fetching those URLs.
 
+## Reviewed real-product catalog
+
+The catalog refresh adds verified model descriptions, EUR VAT-inclusive reference prices and actual product photos for all 45 products while preserving IDs and commerce history. See [catalog maintenance](docs/catalog-refresh.md) for sources, snapshot dates, the standalone plan/download/apply commands, fresh SQL-baseline mapping, private backups and subsequent updates. It never runs during API startup. Product reviews from before a model replacement remain in administrative history and are excluded from the public product page.
+
 ## Redis sessions and caches
 
 Backend keys are separate from the public GraphQL proxy caches in Next.js:
@@ -192,14 +196,14 @@ On October 11, 2026, **nine integration scenarios** passed (ten Node tests inclu
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm start` | Run `dist/index.js`; requires a previous build |
 | `npx tsc --noEmit` | TypeScript check without emitting a build |
-| `npm test` | Nine regression tests: sessions, authorization, startup, dataset validation, and preservation |
+| `npm test` | 15 regression tests: sessions, authorization, startup, datasets, catalog/image validation and review visibility |
 | `SHOPX_SQL_TEST_CONTAINER=<test-container> npm run test:sql` | Nine real Oracle scenarios in a temporary schema, separate from application data |
 | `npm run data:seed` | Read-only plan for the versioned starter pack; add `-- --apply --expect-schema YOUR_SCHEMA` to install explicitly |
 | `SHOPX_DATA_TEST_CONTAINER=<test-container> npm run test:data` | Five real Oracle scenarios for additive installation, preservation, reruns, rollback and concurrency |
 | `npm run lint` | Currently fails: ESLint 9 expects `eslint.config.*`, while this repository has `.eslintrc.json` |
 | `npm run format` | Rewrites files with Prettier; not a read-only check |
 
-The nine unit tests and five additive-data Oracle scenarios passed during the October 11–12 verification. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the [workspace verification record](../docs/development-status.md) for browser/native evidence and remaining limits.
+The 15 unit tests and seven additive-data/catalog Oracle scenarios passed on October 12, 2026. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the [workspace verification record](../docs/development-status.md) for browser/native evidence and remaining limits.
 
 ## Logging and shutdown
 

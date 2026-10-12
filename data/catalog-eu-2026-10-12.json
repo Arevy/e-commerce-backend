@@ -1,0 +1,997 @@
+{
+  "id": "eu-real-catalog-2026-10-12",
+  "currency": "EUR",
+  "priceBasis": "VAT-inclusive retail reference prices; shipping excluded. Snapshot, not a live supplier feed.",
+  "products": [
+    {
+      "legacyName": "MacBook PRO 15",
+      "category": "Electronics",
+      "name": "Apple MacBook Air 13-inch M5 — 16GB / 512GB, Starlight",
+      "description": "13-inch MacBook Air with Apple M5, 10-core CPU and GPU, 16GB memory and 512GB storage. Starlight finish.",
+      "price": 1559.0,
+      "source": {
+        "url": "https://www.apple.com/ie/shop/buy-mac/macbook-air/13-inch-starlight-m5-chip-10-core-cpu-10-core-gpu-16gb-memory-512gb-storage",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "Z1L3+CK9J+CK9N+CK9T+CK9Y+CKDV+CKDW+CKDX+CKDY+CKH8+CKHC+BCKGQ+BCKGX",
+        "availability": "Not specified"
+      },
+      "image": {
+        "url": "https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/macbook-air-specs-select-202601-13inch-starlight?wid=1200&hei=769&fmt=jpeg&qlt=90&.v=1767641167281",
+        "sha256": "47d4c017d7ee75c6eb9b818232259d6e9e64e1c390ef1c98a89723b711cccc54",
+        "mimeType": "image/jpeg",
+        "bytes": 137926
+      }
+    },
+    {
+      "legacyName": "Smartphone X2",
+      "category": "Electronics",
+      "name": "Apple iPhone 17 — 256GB, Black",
+      "description": "Apple iPhone 17 with 256GB storage in Black. Unlocked handset; a mobile service plan is separate.",
+      "price": 1129.0,
+      "source": {
+        "url": "https://www.apple.com/ie/shop/buy-iphone/iphone-17/6.3-inch-display-256gb-black",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "MG6J4QN/A",
+        "availability": "Not specified"
+      },
+      "image": {
+        "url": "https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/iphone-17-finish-select-202509-black_GEO_EMEA?wid=1200&hei=675&fmt=jpeg&qlt=90&.v=1757606624311",
+        "sha256": "584b60f39978d7affd8d7e618aaa826ce77e13ff5cbaefa587a9eb8fb91c10c0",
+        "mimeType": "image/jpeg",
+        "bytes": 41824
+      }
+    },
+    {
+      "legacyName": "Noise-Cancelling Headphones",
+      "category": "Electronics",
+      "name": "Apple AirPods Max 2 — Orange",
+      "description": "Apple AirPods Max 2 over-ear wireless headphones in Orange. Includes active noise cancellation and USB-C charging.",
+      "price": 579.0,
+      "source": {
+        "url": "https://www.apple.com/ie/shop/product/mhwn4zm/a/airpods-max-2-midnight",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "MHWN4ZM/A",
+        "availability": "Not specified"
+      },
+      "image": {
+        "url": "https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/airpods-max-select-202409-orange?wid=976&hei=916&fmt=jpeg&qlt=90&.v=1724927451265",
+        "sha256": "d9a08b51a54fda2d288c60af1aee0298d23dbc2ae416ff050ad75394f76528d4",
+        "mimeType": "image/jpeg",
+        "bytes": 117064
+      }
+    },
+    {
+      "legacyName": "Mystery Novel - The Lost Cipher",
+      "category": "Books",
+      "name": "The Thursday Murder Club — Richard Osman",
+      "description": "Richard Osman’s first Thursday Murder Club mystery. English paperback, ISBN 9780241988268.",
+      "price": 9.49,
+      "source": {
+        "url": "https://www.easons.com/the-thursday-murder-club-richard-osman-9780241988268",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "9780241988268",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.easons.com/images/asset/abaaad83-78e4-4205-9a2e-9746ff08762e/9780241988268_5642675938.jpg",
+        "sha256": "37012518ec6e028672cd153130cfa44c4dd6d7425814b5ea02a389aae9f46928",
+        "mimeType": "image/jpeg",
+        "bytes": 49817
+      }
+    },
+    {
+      "legacyName": "Cookbook - Global Flavors",
+      "category": "Books",
+      "name": "5 Ingredients — Jamie Oliver",
+      "description": "Jamie Oliver’s five-ingredient cookbook. English hardback, ISBN 9780718187729.",
+      "price": 34.8,
+      "source": {
+        "url": "https://www.easons.com/5-ingredients-jamie-oliver-9780718187729",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "9780718187729",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.easons.com/images/m/22563992de2f2897/original/9780718187729_5638910709.jpg",
+        "sha256": "ebc007c519fe6ea6400830ca45c9bc786086855dc7a7beb1b62a33090f4589e0",
+        "mimeType": "image/jpeg",
+        "bytes": 28969
+      }
+    },
+    {
+      "legacyName": "Productivity Playbook",
+      "category": "Books",
+      "name": "Atomic Habits — James Clear",
+      "description": "James Clear’s guide to building everyday habits. English paperback, ISBN 9781847941831.",
+      "price": 18.49,
+      "source": {
+        "url": "https://www.easons.com/atomic-habits-james-clear-9781847941831",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "9781847941831",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.easons.com/images/m/4dab11db573b6cda/original/9781847941831_5638967664.jpg",
+        "sha256": "18b5f9a3a20831b9521c0e123b62cbb060369f5323d67736dbdb0c79d41b804c",
+        "mimeType": "image/jpeg",
+        "bytes": 50985
+      }
+    },
+    {
+      "legacyName": "Premium Denim Jacket",
+      "category": "Clothing",
+      "name": "McKinley Fleur Womens Full-Zip Knit Fleece Hiking Jacket — XS",
+      "description": "Women’s full-zip knit fleece hiking jacket by McKinley. Grey, size XS.",
+      "price": 40.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/mckinley-w-fleur-fz-jkt-flc-knit-gy-1177444?variant=57743917056381",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1177444001",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-1177444-636Wx636H.jpg?v=1779705657&width=1024",
+        "sha256": "a5a698503824e68c556895dbe9ff8a4780eef70519bc3590c9594c7969ea09e8",
+        "mimeType": "image/jpeg",
+        "bytes": 78660
+      }
+    },
+    {
+      "legacyName": "Athletic Sneakers V2",
+      "category": "Clothing",
+      "name": "adidas VL Court 3.0 Mens Regular-Fit Lace Cushioned Shoes — 6 UK",
+      "description": "Men’s adidas VL Court 3.0 lace-up shoes in Navy. Selected UK size 6.",
+      "price": 70.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/adidas-vl-court-30-mens-navy-1176299?variant=57573425643901",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1176299001",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-1176299-636Wx636H.jpg?v=1776866442&width=1024",
+        "sha256": "c38affada3f283e739c8aa4a4ed90737e9b562a86fc7b0a556e7accf9187a774",
+        "mimeType": "image/jpeg",
+        "bytes": 70103
+      }
+    },
+    {
+      "legacyName": "Classic White Tee Pack",
+      "category": "Clothing",
+      "name": "Animal Mens Jacob T-Shirt Dark Green — XS",
+      "description": "Animal Jacob men’s T-shirt in Dark Green. Selected size XS.",
+      "price": 33.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/animal-mens-jacob-tshirt-dark-green-ds03939?variant=58131083854205",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "DS03939001",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/mega-lutmw3875.jpg?v=1778156221&width=1024",
+        "sha256": "cff0e96db811ab879f3c563d6a86ab428deedb1776ac2a9faf7f9e2016406fbc",
+        "mimeType": "image/jpeg",
+        "bytes": 78159
+      }
+    },
+    {
+      "legacyName": "Stainless Steel Cookware Set",
+      "category": "Home & Kitchen",
+      "name": "IKEA MIDDAGSMAT Frying pan, set of 2 - non-stick coating/stainless steel",
+      "description": "IKEA MIDDAGSMAT set of two stainless-steel frying pans with non-stick coating.",
+      "price": 15.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/middagsmat-frying-pan-set-of-2-non-stick-coating-stainless-steel-00596477/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "005.964.77",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/middagsmat-frying-pan-set-of-2-non-stick-coating-stainless-steel__1362422_pe955224_s5.jpg",
+        "sha256": "bfcd75e17998b6e56252c38f25812e378eed5543195d6c0811bb73fafd5f3b71",
+        "mimeType": "image/jpeg",
+        "bytes": 79537
+      }
+    },
+    {
+      "legacyName": "Smart Air Purifier",
+      "category": "Home & Kitchen",
+      "name": "IKEA STARKVIND Air purifier - white/smart",
+      "description": "IKEA STARKVIND smart air purifier in White. Check the manufacturer’s hub requirements before connecting smart-home features.",
+      "price": 149.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/starkvind-air-purifier-white-smart-40461947/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "404.619.47",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/starkvind-air-purifier-white-smart__0978611_pe814183_s5.jpg",
+        "sha256": "3d7bc8457a0e5503c8f13e67a798e539d919ef3c9b6d8ec9fd94f37993c8f80e",
+        "mimeType": "image/jpeg",
+        "bytes": 566746
+      }
+    },
+    {
+      "legacyName": "Memory Foam Pillow Duo",
+      "category": "Home & Kitchen",
+      "name": "IKEA KLUBBSPORRE Ergonomic pillow, side/back sleeper 41x70 cm",
+      "description": "IKEA KLUBBSPORRE ergonomic pillow for side and back sleepers, 41 × 70 cm. One pillow.",
+      "price": 49.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/klubbsporre-ergonomic-pillow-side-back-sleeper-40446099/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "404.460.99",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/klubbsporre-ergonomic-pillow-side-back-sleeper__0792296_pe764700_s5.jpg",
+        "sha256": "5b1640f94befbe33df6ee69659e6658766c0cf61ed42768a0029b7e02aad9a0d",
+        "mimeType": "image/jpeg",
+        "bytes": 88575
+      }
+    },
+    {
+      "legacyName": "Vitamin C Serum 30ml",
+      "category": "Beauty & Personal Care",
+      "name": "Anua Niacinamide 10% + TXA 4% Serum 30ml",
+      "description": "Anua facial serum with 10% niacinamide and 4% TXA. 30ml bottle; follow the package directions.",
+      "price": 30.9,
+      "source": {
+        "url": "https://www.meagherspharmacy.ie/products/anua-niacinamide-10-txa-4-serum-30ml?variant=56890799522136",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "106904",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.meagherspharmacy.ie/cdn/shop/files/anua-niacinamide-10-txa-4-serum-30ml-serum-meaghers-pharmacy-1227052265.jpg?v=1773328417&width=1000",
+        "sha256": "edd88823943b83efe0ff9aa617cf5c1aa6e0769053b77052414415793e8bca81",
+        "mimeType": "image/jpeg",
+        "bytes": 29514
+      }
+    },
+    {
+      "legacyName": "Hydrating Face Mask Set",
+      "category": "Beauty & Personal Care",
+      "name": "Anua Rice 70 Glow Collagen Mask (4 Pack)",
+      "description": "Anua Rice 70 Glow Collagen face masks. Pack of four individually packaged masks.",
+      "price": 20.9,
+      "source": {
+        "url": "https://www.meagherspharmacy.ie/products/anua-rice-70-glow-collagen-mask?variant=56891625177432",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "106909",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.meagherspharmacy.ie/cdn/shop/files/anua-rice-70-glow-collagen-mask-4-pack-face-mask-meaghers-pharmacy-1227078339.jpg?v=1773342757&width=1000",
+        "sha256": "c234e587dad9d51155aad042d6fd84dbf6cf2c6bc622a37b4e6c0e192c5a1c2b",
+        "mimeType": "image/jpeg",
+        "bytes": 54722
+      }
+    },
+    {
+      "legacyName": "Luxury Shampoo & Conditioner",
+      "category": "Beauty & Personal Care",
+      "name": "Alfaparf Semi Di Lino Moisture Nutritive Low Shampoo 250ml",
+      "description": "Alfaparf Semi Di Lino Moisture Nutritive Low Shampoo. One 250ml bottle.",
+      "price": 16.75,
+      "source": {
+        "url": "https://www.meagherspharmacy.ie/products/alfaparf-semi-di-lino-moisture-nutritive-low-shampoo?variant=56276332740952",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "101331",
+        "availability": "http://schema.org/OutOfStock"
+      },
+      "image": {
+        "url": "https://www.meagherspharmacy.ie/cdn/shop/files/alfaparf-semi-di-lino-moisture-nutritive-low-shampoo-250ml-shampoo-meaghers-pharmacy-1208811649.jpg?v=1764076403&width=1000",
+        "sha256": "ce1ada04dca6fc3cff30d53d8bc20193751dcc5391f01b9ccbf9a5dd6ec6b0f5",
+        "mimeType": "image/jpeg",
+        "bytes": 26275
+      }
+    },
+    {
+      "legacyName": "Carbon Fiber Tennis Racket",
+      "category": "Sports & Outdoors",
+      "name": "Babolat Evo Drive Tennis Racket — 3",
+      "description": "Babolat Evo Drive tennis racket in Grey. Selected grip size 3.",
+      "price": 144.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/babolat-evo-drive-tennis-racket-grey-1160736?variant=50025037005116",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1160736003",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-1160736-636Wx636H.jpg?v=1739795045&width=1024",
+        "sha256": "da67a5b0c90be429b7d95b1a210430a6eb36bfa947eca7e13d7c9cbc5fe3b386",
+        "mimeType": "image/jpeg",
+        "bytes": 56251
+      }
+    },
+    {
+      "legacyName": "Foldable Yoga Mat",
+      "category": "Sports & Outdoors",
+      "name": "Body Sculpture PE Yoga Mat (Blue)",
+      "description": "Body Sculpture PE yoga mat in Blue for floor exercise and stretching.",
+      "price": 12.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/body-sculpture-pe-yoga-mat-blue?variant=49186964013372",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1076788",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-000000000001076788-636Wx636H.jpg?v=1735911400&width=1024",
+        "sha256": "141fc68c413f428511b7b7f528c5ab8c038930da0f2093a729ea113a1090c13e",
+        "mimeType": "image/jpeg",
+        "bytes": 19281
+      }
+    },
+    {
+      "legacyName": "Trail Running Backpack",
+      "category": "Sports & Outdoors",
+      "name": "The North Face Base Camp Small Duffel Bag 50-Litres",
+      "description": "The North Face Base Camp small duffel in Yellow. 50-litre capacity.",
+      "price": 145.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/the-norht-face-base-camp-duffl-small-ylw-1171293?variant=56383203311997",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1171293",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-1171293-636Wx636H.jpg?v=1765467358&width=1024",
+        "sha256": "85fd9a2a959d0c80bd45fd031fdd23915d6eaa368e63c3e0ebd2770dda907064",
+        "mimeType": "image/jpeg",
+        "bytes": 71183
+      }
+    },
+    {
+      "legacyName": "STEAM Robotics Kit",
+      "category": "Toys & Games",
+      "name": "Learning Resources ABC Robot Factory",
+      "description": "Learning Resources ABC Robot Factory educational activity set for practising letters through robot-building play.",
+      "price": 29.95,
+      "source": {
+        "url": "https://cogstoysandgames.ie/products/abc-robots?variant=58944054067464",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "765023055412",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.cogstoysandgames.ie/cdn/shop/files/abc-r.jpg?v=1790847125&width=1024",
+        "sha256": "fe2b80a0d2fb2ace95c41eb1786767e46d5a23c91c9d51b1f3a3aca9fa980f90",
+        "mimeType": "image/jpeg",
+        "bytes": 56369
+      }
+    },
+    {
+      "legacyName": "Eco-Friendly Building Blocks",
+      "category": "Toys & Games",
+      "name": "OPPI Piks Medium — 44-piece construction kit",
+      "description": "OPPI Piks Medium construction kit with 44 pieces for creative balancing and building activities.",
+      "price": 49.95,
+      "source": {
+        "url": "https://cogstoysandgames.ie/products/piks-44-pcs?variant=58329116541192",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "3770012737214",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.cogstoysandgames.ie/cdn/shop/files/piks.jpg?v=1785401751&width=1024",
+        "sha256": "2814c8bdcb9959e4431eee1748000e7c2f7cbb43ccefe4aafcdf9d8a34a53f98",
+        "mimeType": "image/jpeg",
+        "bytes": 65771
+      }
+    },
+    {
+      "legacyName": "Family Game Night Bundle",
+      "category": "Toys & Games",
+      "name": "Ticket to Ride",
+      "description": "Ticket to Ride board game, published by Days of Wonder. Build railway routes with family and friends.",
+      "price": 49.99,
+      "source": {
+        "url": "https://www.easons.com/ticket-to-ride-0970036",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "097/0036",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.easons.com/images/m/1230d8338178345/original/0970036_5641171431.jpg",
+        "sha256": "8d47f18dd3621903119b19de13b2a066c9f2412bac30f4700374a96dac2ffd0d",
+        "mimeType": "image/jpeg",
+        "bytes": 230692
+      }
+    },
+    {
+      "legacyName": "Ergonomic Office Chair",
+      "category": "Office & Stationery",
+      "name": "IKEA MARKUS Office chair - Vissle dark grey Medium",
+      "description": "IKEA MARKUS office chair in Vissle Dark Grey. High back with adjustable seat height.",
+      "price": 169.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/markus-office-chair-vissle-dark-grey-30261152/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "302.611.52",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/markus-office-chair-vissle-dark-grey__0724714_pe734597_s5.jpg",
+        "sha256": "ad40df0b6bc60084ca41eb07a8e50796c2d9f6e29b3682fa01ebcde6f450d144",
+        "mimeType": "image/jpeg",
+        "bytes": 177841
+      }
+    },
+    {
+      "legacyName": "Wireless Mechanical Keyboard",
+      "category": "Office & Stationery",
+      "name": "Logitech MX Mechanical - Graphite - English International (QWERTY)",
+      "description": "Logitech MX Mechanical wireless keyboard in Graphite. English International QWERTY layout, SKU 920-010757.",
+      "price": 159.99,
+      "source": {
+        "url": "https://www.logitech.com/en-eu/products/keyboards/mx-mechanical.920-010757.html",
+        "market": "EU",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "920-010757",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://resource.logitech.com/c_fill,q_auto,f_png,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/keyboards/mx-mechanical/migration-assets-for-delorean-2025/gallery/mx-mechanical-top-view-graphite-us-intl.png",
+        "sha256": "a1ce1ab833e432b5935a2a00dd19cf1bbd0e5e6f38bc1af42d743ca051be9def",
+        "mimeType": "image/png",
+        "bytes": 1030830
+      }
+    },
+    {
+      "legacyName": "Productivity Planner Set",
+      "category": "Office & Stationery",
+      "name": "The Atomic Habits Workbook — James Clear",
+      "description": "The Atomic Habits Workbook by James Clear. English paperback, ISBN 9781529981230.",
+      "price": 18.99,
+      "source": {
+        "url": "https://www.easons.com/the-atomic-habits-workbook-james-clear-9781529981230",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "9781529981230",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.easons.com/images/m/5d464ec986a0c120/original/9781529981230_5640198602.jpg",
+        "sha256": "80dd7f66b31af1ebe73418bf1d05ebaf2354a76a153742a5eab551c5891546cc",
+        "mimeType": "image/jpeg",
+        "bytes": 353019
+      }
+    },
+    {
+      "legacyName": "Organic Coffee Beans 1kg",
+      "category": "Grocery & Gourmet",
+      "name": "Equal Exchange Organic Medium Roast Coffee Beans — 227g",
+      "description": "Equal Exchange organic medium-roast whole coffee beans. 227g pack; a grinder is required.",
+      "price": 10.3,
+      "source": {
+        "url": "https://evergreen.ie/products/equal-exchange-organic-medium-roast-coffee-beans?variant=40084293255359",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "I0010852",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://evergreen.ie/cdn/shop/files/equal-exchange-organic-medium-roast-beans.jpg?v=1715163141",
+        "sha256": "18e2dca311443fb16b9596fc8c88cf2d2af76466a5f3ecec3b9ef3626e3d4db7",
+        "mimeType": "image/jpeg",
+        "bytes": 80042
+      }
+    },
+    {
+      "legacyName": "Artisanal Olive Oil 750ml",
+      "category": "Grocery & Gourmet",
+      "name": "Clearspring Organic 100% Italian Extra Virgin Olive Oil — 500ml",
+      "description": "Clearspring organic Italian extra virgin olive oil. 500ml bottle.",
+      "price": 16.15,
+      "source": {
+        "url": "https://evergreen.ie/products/clearspring-organic-italian-extra-virgin-olive-oil?variant=40084649509055",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "I0011688",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0570/5728/0191/products/clearspring-organic-100-italian-extra-virgin-olive-oil-500ml-5021554981473.jpg?v=1624531260&width=1000",
+        "sha256": "e398bad0988eba1f1539c49b1ad982fe44fbe7d9f162ea7b2d18cdb83e529eca",
+        "mimeType": "image/jpeg",
+        "bytes": 27855
+      }
+    },
+    {
+      "legacyName": "Gourmet Snack Sampler Box",
+      "category": "Grocery & Gourmet",
+      "name": "Chocolate & Love Sea Salt & Caramel — 80g",
+      "description": "Chocolate & Love dark chocolate with sea salt and caramel. 80g bar; check the package for allergens.",
+      "price": 5.15,
+      "source": {
+        "url": "https://evergreen.ie/products/chocolate-love-dark-chocolate-sea-salt-caramel?variant=40084772618431",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "I0046136",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0570/5728/0191/products/chocolate_love_dark_chocolate_sea_salt_caramel_-_80g.jpg?v=1624532525&width=1000",
+        "sha256": "79491bbbe6057f38b0d17a45d48e0db80649fbc511ee2b83c750ac33e0fcf947",
+        "mimeType": "image/jpeg",
+        "bytes": 91904
+      }
+    },
+    {
+      "legacyName": "All-Weather Car Mats",
+      "category": "Automotive",
+      "name": "Michelin All-Season Rubber Car Mat Set",
+      "description": "Michelin All-Season rubber car mat set. Check the dimensions against your vehicle before fitting.",
+      "price": 38.0,
+      "source": {
+        "url": "https://www.halfords.ie/motoring/car-accessories/car-mats/michelin-all-season-rubber-car-mat-set-722142.html",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "722142",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.media.halfords.com/i/washford/722142/Michelin-All-Season-Rubber-Car-Mat-Set?fmt=auto&qlt=default&$sfcc_tile$&w=340",
+        "sha256": "a67d2a9c50ce8799b82a0e39d24f768fa6e37d74ee6e20a93e8497bed75989a1",
+        "mimeType": "image/jpeg",
+        "bytes": 14941
+      }
+    },
+    {
+      "legacyName": "Portable Jump Starter",
+      "category": "Automotive",
+      "name": "Halfords Advanced 3L Jump Starter Powerbank",
+      "description": "Halfords Advanced portable jump-starter power bank for compatible 12V vehicles up to 3 litres. Follow the supplied safety instructions.",
+      "price": 114.0,
+      "source": {
+        "url": "https://www.halfords.ie/seasonal/all-deals/halfords-advanced-3l-jump-starter-powerbank-191195.html",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "191195",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.media.halfords.com/i/washford/191195/Halfords-Advanced-3L-Jump-Starter-Powerbank?fmt=auto&qlt=default&$sfcc_tile$&w=340",
+        "sha256": "63925aff1d1ff31338d40312e6c78be97e758b8f836c6e634e636f5643b578e8",
+        "mimeType": "image/jpeg",
+        "bytes": 10989
+      }
+    },
+    {
+      "legacyName": "Dash Cam Ultra 4K",
+      "category": "Automotive",
+      "name": "Nextbase 622GW Dash Cam",
+      "description": "Nextbase 622GW 4K dash camera. Front camera model; rear camera and fitting are separate.",
+      "price": 322.0,
+      "source": {
+        "url": "https://www.halfords.ie/technology/dash-cams/nextbase-622gw-dash-cam-427550.html",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "427550",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.media.halfords.com/i/washford/427550/Nextbase-622GW-Dash-Cam?fmt=auto&qlt=default&$sfcc_tile$&w=340",
+        "sha256": "33a935ec58d3859581b144657489372146c68a3f1550187078a645cf9c317835",
+        "mimeType": "image/jpeg",
+        "bytes": 8792
+      }
+    },
+    {
+      "legacyName": "Smart Fitness Watch",
+      "category": "Health & Wellness",
+      "name": "Garmin Forerunner 165 — Black",
+      "description": "Garmin Forerunner 165 smartwatch in Black for everyday activity and running.",
+      "price": 279.99,
+      "source": {
+        "url": "https://www.elverys.ie/products/garmin-forerunner-r-165-smartwatch-black?variant=49191890682172",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1156324",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-000000000001156324-636Wx636H.jpg?v=1716390069&width=1024",
+        "sha256": "9f7e20e88edd946ce24d8b1f87d2c975a07ea70775ee8a1eb33b758cd14de404",
+        "mimeType": "image/jpeg",
+        "bytes": 82134
+      }
+    },
+    {
+      "legacyName": "Foam Roller Recovery Kit",
+      "category": "Health & Wellness",
+      "name": "PTP Fascia Release Roller - Small",
+      "description": "PTP Fascia Release Roller, Small, in Black. Compact roller for your exercise routine.",
+      "price": 26.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/ptp-fascia-release-roller-small-black?variant=49187647914300",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1122609",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-000000000001122609-636Wx636H.jpg?v=1714045793&width=1024",
+        "sha256": "c872b46db5ea095127b3977dda80354ef5eed34f532564d4d49df3b4b477f833",
+        "mimeType": "image/jpeg",
+        "bytes": 56724
+      }
+    },
+    {
+      "legacyName": "Herbal Tea Wellness Set",
+      "category": "Health & Wellness",
+      "name": "Pukka Organic Three Mint Tea — 8 Sachets",
+      "description": "Pukka Three Mint organic herbal tea. Selected pack contains 8 sachets.",
+      "price": 2.6,
+      "source": {
+        "url": "https://evergreen.ie/products/pukka-three-mint-tea?variant=56145916264774",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "I0057778",
+        "availability": "http://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0570/5728/0191/files/Pukka_Organic_Three_Mint_Tea_8_sachets.jpg?v=1773247800&width=1000",
+        "sha256": "94c2f14f7ac8acf75d80dff46087e20cc669390d514396b3296ad7d73366a177",
+        "mimeType": "image/jpeg",
+        "bytes": 133640
+      }
+    },
+    {
+      "legacyName": "Orbit Wireless Headphones",
+      "category": "Connected Living",
+      "name": "Soundcore Q30 — Black",
+      "description": "Soundcore Q30 wireless over-ear headphones in Black with active noise cancellation.",
+      "price": 83.99,
+      "source": {
+        "url": "https://www.soundcore.com/eu/products/a3028011?variant=39550608212144",
+        "market": "EU",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "A3028313",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0515/5553/2976/files/A3028013_product_image_01_V1.png?v=1762424260&width=1000",
+        "sha256": "18546e288f9ee90c9e53ae869d5433f200ecbca7b90b1e05c86c800e0699121c",
+        "mimeType": "image/png",
+        "bytes": 596232
+      }
+    },
+    {
+      "legacyName": "Link USB-C Desk Dock",
+      "category": "Connected Living",
+      "name": "Anker Prime Charging Docking Station (14-in-1, Dual Display, 160W)",
+      "description": "Anker Prime 14-in-1 charging docking station with dual-display support and 160W total power. EU model A83B63A1.",
+      "price": 208.99,
+      "source": {
+        "url": "https://www.anker.com/eu-en/products/a83b6-anker-prime-charging-docking-station-14-in-1-dual-display-160w",
+        "market": "EU",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "A83B63A1",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0595/4034/0926/files/A83B6-01EU_9048ca12-46d2-415b-83f1-4120924d323f.png?v=1722478552&width=1000",
+        "sha256": "60b8fc015b7d70179fd3e9a04c89b57f973431712f9483589d7a323f9f7c2c9d",
+        "mimeType": "image/png",
+        "bytes": 416092
+      }
+    },
+    {
+      "legacyName": "Focus Compact Keyboard",
+      "category": "Connected Living",
+      "name": "Logitech Pebble Keys 2 K380s - Tonal Graphite - English International (QWERTY)",
+      "description": "Logitech Pebble Keys 2 K380s Bluetooth keyboard in Tonal Graphite. English International QWERTY layout, SKU 920-011851.",
+      "price": 34.99,
+      "source": {
+        "url": "https://www.logitech.com/en-eu/products/keyboards/pebble-keys-2.920-011753.html",
+        "market": "EU",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "920-011851",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://resource.logitech.com/c_fill,q_auto,f_png,dpr_1.0/d_transparent.gif/content/dam/logitech/en/products/keyboards/pebble-keys-2-k380s/2026/gallery/tonal-graphite/pebble-keys-k380s-2-tonal-graphite-top-angle-gallery-1-us-intl.png",
+        "sha256": "0e6dfa6017d6d37c6ece1d52af6c0f126d6b5201b37987034a3f286ca9e49409",
+        "mimeType": "image/png",
+        "bytes": 1167320
+      }
+    },
+    {
+      "legacyName": "Pocket USB-C Power Bank",
+      "category": "Connected Living",
+      "name": "Anker Nano Power Bank (30W, Built-In USB-C Cable)",
+      "description": "Anker Nano 10,000mAh power bank with 30W charging and built-in USB-C cable. Black, SKU A1259011.",
+      "price": 62.99,
+      "source": {
+        "url": "https://www.anker.com/eu-en/products/a1259-built-in-cable-power-bank-10000mah?variant=43398799720638&amp;top_filter=10%2C000mAh-21%2C000mAh&amp;collections_power-banks=&amp;Sort_by=Recommended",
+        "market": "EU",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "A1259011",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://cdn.shopify.com/s/files/1/0595/4034/0926/files/A1259011.png?v=1721190972&width=1000",
+        "sha256": "82ea8dc20c594a118b91f554cece4123af9a11a4a2e793612c9d0058707f329d",
+        "mimeType": "image/png",
+        "bytes": 245511
+      }
+    },
+    {
+      "legacyName": "Halo Reading Lamp",
+      "category": "Considered Home",
+      "name": "IKEA RANARP Work lamp - off-white",
+      "description": "IKEA RANARP adjustable work lamp in Off-white. Light bulb sold separately.",
+      "price": 49.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/ranarp-work-lamp-off-white-70231318/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "702.313.18",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/ranarp-work-lamp-off-white__0610455_pe685514_s5.jpg",
+        "sha256": "f891c33bae9b2c6b9a10ebead7f4d1fa5b0438eb0a71af5e3ca812b151fa7f56",
+        "mimeType": "image/jpeg",
+        "bytes": 48910
+      }
+    },
+    {
+      "legacyName": "Nest Ceramic Planter",
+      "category": "Considered Home",
+      "name": "IKEA PERSILLADE Plant pot - dark grey 12 cm",
+      "description": "IKEA PERSILLADE ceramic plant pot in Dark Grey, 12cm. Plant sold separately.",
+      "price": 3.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/persillade-plant-pot-dark-grey-00315726/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "003.157.26",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/persillade-plant-pot-dark-grey__0439713_pe592235_s5.jpg",
+        "sha256": "286b14a5de4630c3932dff923d1c6b6199cc0922a20933fa2763bee348d7b0a4",
+        "mimeType": "image/jpeg",
+        "bytes": 325565
+      }
+    },
+    {
+      "legacyName": "Morning Pour-Over Set",
+      "category": "Considered Home",
+      "name": "IKEA UPPHETTA Coffee/tea maker - glass/stainless steel 1 l",
+      "description": "IKEA UPPHETTA glass and stainless-steel coffee/tea maker. 1-litre capacity.",
+      "price": 12.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/upphetta-coffee-tea-maker-glass-stainless-steel-60241389/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "602.413.89",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/upphetta-coffee-tea-maker-glass-stainless-steel__0713350_pe729456_s5.jpg",
+        "sha256": "5d8d42945660323c8f6437cbbb5446e5fd286ccee0a0607ea92110a8ddcb8bc9",
+        "mimeType": "image/jpeg",
+        "bytes": 122098
+      }
+    },
+    {
+      "legacyName": "Soft Woven Cotton Throw",
+      "category": "Considered Home",
+      "name": "IKEA VITMOSSA Throw - grey 120x160 cm",
+      "description": "IKEA VITMOSSA grey throw, 120 × 160cm. Lightweight fleece for the sofa or an extra layer.",
+      "price": 2.0,
+      "source": {
+        "url": "https://www.ikea.com/ie/en/p/vitmossa-throw-grey-90304889/",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "903.048.89",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.ikea.com/ie/en/images/products/vitmossa-throw-grey__0603361_pe680780_s5.jpg",
+        "sha256": "b1eed7a5d403a0ed5bd6711d0007d58cfbe3bc5414ae8d648347e7e88cf67a15",
+        "mimeType": "image/jpeg",
+        "bytes": 321158
+      }
+    },
+    {
+      "legacyName": "Trail Everyday Daypack",
+      "category": "Everyday Adventure",
+      "name": "Herschel Bags Unisex Classic XL Backpack Ash Rose",
+      "description": "Herschel Classic XL backpack in Ash Rose for everyday essentials.",
+      "price": 60.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/herschel-bags-unisex-classic-xl-backpack-ash-rose-ds00802?variant=56057927041405",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "DS00802",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-DS00802-636Wx636H.jpg?v=1747818753&width=1024",
+        "sha256": "c5366ad43ff8353b015f3a0e9281126d1f4abdd7938c8d9ad6fb12279a377395",
+        "mimeType": "image/jpeg",
+        "bytes": 111030
+      }
+    },
+    {
+      "legacyName": "Flow Everyday Yoga Mat",
+      "category": "Everyday Adventure",
+      "name": "Bahe Prime Support 6MM Yoga Mat",
+      "description": "BAHE Prime Support yoga mat, 6mm thickness, for floor-based exercise.",
+      "price": 30.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/bahe-prime-support-6mm-yoga-mat?variant=49190742786364",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1148542",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-000000000001148542-636Wx636H.jpg?v=1714049834&width=1024",
+        "sha256": "1dae74d91f4a696b2b385c07d16ff82033737424e51db5e87f012ce844b71674",
+        "mimeType": "image/jpeg",
+        "bytes": 69740
+      }
+    },
+    {
+      "legacyName": "Everyday Steel Bottle",
+      "category": "Everyday Adventure",
+      "name": "Nike Stainless Steel Recharge Straw Bottle - 24oz",
+      "description": "Nike Recharge stainless-steel bottle with straw lid in Black. 24 US fl oz capacity.",
+      "price": 45.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/nike-ss-recharge-straw-bottle-24oz-black-1165950?variant=55011017294205",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "1165950",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-1165950-636Wx636H.jpg?v=1755294916&width=1024",
+        "sha256": "b245ef5e4ae9885ef0e86b95ed3680c11958fde5677a40d8c80d9df0dcaab5df",
+        "mimeType": "image/jpeg",
+        "bytes": 36158
+      }
+    },
+    {
+      "legacyName": "Weekend Travel Organizer",
+      "category": "Everyday Adventure",
+      "name": "Herschel Bags Unisex Chapter Travel Kit Morning Dove/Dark Shadow",
+      "description": "Herschel Chapter travel kit in Morning Dove/Dark Shadow for organising small travel essentials.",
+      "price": 25.0,
+      "source": {
+        "url": "https://www.elverys.ie/products/herschel-bags-unisex-chapter-travel-kit-morning-dovedark-shadow-ds02427?variant=57727122768253",
+        "market": "IE",
+        "checkedAt": "2026-10-12",
+        "currency": "EUR",
+        "taxIncluded": true,
+        "sku": "DS02427",
+        "availability": "https://schema.org/InStock"
+      },
+      "image": {
+        "url": "https://www.elverys.ie/cdn/shop/files/C1-DS02427-636Wx636H.jpg?v=1769075744&width=1024",
+        "sha256": "af65dd22fb9068ca5ffb525d67b24bf29799c7b6626b76b55e01c0fc58b2ad45",
+        "mimeType": "image/jpeg",
+        "bytes": 127427
+      }
+    }
+  ]
+}

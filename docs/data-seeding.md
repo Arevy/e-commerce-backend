@@ -15,7 +15,7 @@ The backend owns the data definition and installer. They work in a standalone cl
 | CMS pages | 4 | Three published pages and one private draft |
 | Reviews | 3 | Explicitly labeled demonstration reviews |
 
-No payment is charged. Existing homepage content, accounts, password hashes, orders, and uploaded images are preserved. New products initially use the clients' existing missing-image UI; the installer does not fetch images from third parties. The pack does not change currencies or shipping/payment behavior.
+No payment is charged. Existing homepage content, accounts, password hashes, orders, and uploaded images are preserved. New products initially use the clients' existing missing-image UI; the installer does not fetch images from third parties. The pack does not change currencies or shipping/payment behavior. The separate [real-product refresh](catalog-refresh.md) now supplies matching photographs, real models and reviewed EUR prices for the recovered catalog; do not edit this already applied seed pack to perform that refresh.
 
 Only `CUSTOMER` and `SUPPORT` exist in the current schema/API. Both administrative sample accounts have the same `SUPPORT` permissions. They do not establish a separate superadministrator, merchant, or platform-owner role. Guests have no database account.
 
@@ -73,7 +73,7 @@ Direct SQL writes do not automatically invalidate application caches. The standa
 
 ## Relationship to the SQL reset
 
-[sql_script.txt](../sql_script.txt) remains the historical, destructive schema/demo reset for disposable environments. Its original seed stays reproducible. It now also drops `SHOPX_DATASET_RUNS` during an intentional full reset, so that a subsequent starter installation cannot mistake deleted records for an applied pack.
+[sql_script.txt](../sql_script.txt) remains the historical, destructive schema/demo reset for disposable environments. Its original seed stays reproducible. It also drops `SHOPX_CATALOG_RUNS`, `SHOPX_CATALOG_SOURCES` and `SHOPX_DATASET_RUNS` during an intentional full reset, so that a subsequent starter installation cannot mistake deleted records for an applied pack.
 
 Use the additive installer for recovered `AREVY`. Do not run the reset to add these records. A fresh disposable platform can initialize the base schema first, then explicitly apply its selected versioned pack. Neither is an automatic production-startup step.
 

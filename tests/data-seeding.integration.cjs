@@ -92,6 +92,59 @@ test('additive dataset installation in an isolated Oracle schema', {timeout: 180
         assert.equal(accountFiles.length, 1);
       } finally { await other.close(); }
     });
+    await t.test('reviewed catalog resolves all 45 products on the documented fresh SQL baseline', async () => {
+      const {refreshCatalog, defaultCatalog} = require('../scripts/refresh-catalog.cjs');
+      const catalog = JSON.parse(fs.readFileSync(defaultCatalog, 'utf8'));
+      catalog.id = 'eu-real-catalog-sql-2026-10-12';
+      catalog.products.find(p => p.legacyName === 'MacBook PRO 15').legacyName = 'Laptop Pro 15';
+      const before = await snapshot(connection);
+      assert.equal((await refreshCatalog(connection, catalog)).products, 45);
+      const after = await snapshot(connection);
+      assertPreserved(before, after); assertPreserved(after, before);
+    });
+    await t.test('catalog refresh preserves commerce history, rolls back late errors, and is idempotent', async () => {
+      const {refreshCatalog} = require('../scripts/refresh-catalog.cjs');
+      const rows = await snapshot(connection);
+      const products = rows.PRODUCTS.slice(0,2);
+      const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aPAAAAABJRU5ErkJggg==','base64');
+      const digest = crypto.createHash('sha256').update(image).digest('hex');
+      const assets=path.join(output,'assets'); fs.mkdirSync(assets); fs.writeFileSync(path.join(assets,digest),image);
+      const catalog={id:'catalog-integration',currency:'EUR',products:products.map((p,index)=>({
+        legacyName:p.NAME,name:`Catalog model ${index}`,category:rows.CATEGORIES.find(c=>c.ID===p.CATEGORY_ID).NAME,
+        description:'A verified catalog test model.',price:100.25+index,
+        source:{url:'https://example.com/product',checkedAt:new Date().toISOString().slice(0,10),market:'IE',currency:'EUR',taxIncluded:true},
+        image:{url:'https://example.com/image.png',sha256:digest},
+      }))};
+      const opts={apply:true,expectedSchema:schema,directory:output,assets};
+      assert((await refreshCatalog(connection,catalog)).planOnly);
+      assert.equal((await connection.execute("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME='SHOPX_CATALOG_RUNS'")).rows[0][0],0);
+      await assert.rejects(refreshCatalog(connection,catalog,{...opts,expectedSchema:'OTHER'}));
+      await connection.execute("ALTER TABLE PRODUCTS ADD CONSTRAINT CK_CATALOG_FAIL CHECK (NAME <> 'Catalog model 1')");
+      await assert.rejects(refreshCatalog(connection,catalog,opts),e=>e.errorNum===2290);
+      const unchanged=await snapshot(connection); assertPreserved(rows,unchanged); assertPreserved(unchanged,rows);
+      assert.equal((await connection.execute('SELECT COUNT(*) FROM SHOPX_CATALOG_RUNS')).rows[0][0],0);
+      await connection.execute('ALTER TABLE PRODUCTS DROP CONSTRAINT CK_CATALOG_FAIL');
+      const result=await refreshCatalog(connection,catalog,opts);
+      assert.equal(result.products,2);assert(result.businessDataPreserved);
+      assert.equal(fs.statSync(result.backup).mode & 0o777,0o600);
+      const after=await snapshot(connection);
+      for(let i=0;i<2;i++) {
+        const p=after.PRODUCTS.find(p=>p.ID===products[i].ID);assert.equal(p.NAME,catalog.products[i].name);assert.equal(p.PRICE,catalog.products[i].price);assert.deepEqual(p.IMAGE_DATA,image);
+      }
+      assert((await refreshCatalog(connection,catalog,opts)).alreadyApplied);
+      const modified=structuredClone(catalog);modified.products[0].price++;
+      await assert.rejects(refreshCatalog(connection,modified,opts),/edited/);
+      const {PRODUCTS:ignoredBefore,...beforeBusiness}=rows;
+      const {PRODUCTS:ignoredAfter,...afterBusiness}=after;
+      assertPreserved(beforeBusiness,afterBusiness);assertPreserved(afterBusiness,beforeBusiness);
+      const cutoffs = (await connection.execute('SELECT PRODUCT_ID, MODEL_CHANGED_AT FROM SHOPX_CATALOG_SOURCES ORDER BY PRODUCT_ID')).rows;
+      const priceOnly = structuredClone(catalog);
+      priceOnly.id = 'catalog-price-update';
+      for (const p of priceOnly.products) {p.legacyName = p.name; p.price += 1;}
+      assert((await refreshCatalog(connection,priceOnly,opts)).businessDataPreserved);
+      assert.deepEqual((await connection.execute('SELECT PRODUCT_ID, MODEL_CHANGED_AT FROM SHOPX_CATALOG_SOURCES ORDER BY PRODUCT_ID')).rows, cutoffs, 'Price updates must retain reviews of the current model');
+    });
+
   } finally {
     if (connection) await connection.close();
     await sql(`DROP USER ${schema} CASCADE;`);

@@ -1,32 +1,30 @@
-FROM node:20 AS deps
+FROM node:22-bookworm-slim AS dependencies
 
 WORKDIR /app
 
 ENV npm_config_oracle_skip_postinstall=1
 
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile && yarn cache clean
 
+FROM dependencies AS development
+COPY . .
+EXPOSE 4000
+CMD ["sh", "-c", "node scripts/wait-for-services.cjs && exec yarn dev"]
+
+FROM dependencies AS build
 COPY . .
 RUN yarn build
 
-FROM node:20
+FROM node:22-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 ENV npm_config_oracle_skip_postinstall=1
-ENV ORACLE_CLIENT_DIR=/opt/oracle/instantclient
-ENV LD_LIBRARY_PATH=${ORACLE_CLIENT_DIR}
-ENV PATH=${ORACLE_CLIENT_DIR}:${PATH}
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libaio1 \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p ${ORACLE_CLIENT_DIR}
 
 COPY package.json yarn.lock ./
-RUN yarn install --production --frozen-lockfile
+RUN yarn install --production --frozen-lockfile && yarn cache clean
 
-COPY --from=deps /app/dist ./dist
+COPY --from=build /app/dist ./dist
 
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

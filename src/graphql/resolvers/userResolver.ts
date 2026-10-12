@@ -27,7 +27,7 @@ export const userResolver = {
 
       SessionService.attachSessionCookie(context.res, session)
 
-      return result
+      return { ...result, token: SessionService.createAccessToken(session) }
     },
 
     logout: async (_: unknown, __: unknown, context: GraphQLContext) => {

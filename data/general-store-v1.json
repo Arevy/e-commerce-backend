@@ -1,0 +1,59 @@
+{
+  "id": "general-store-v1",
+  "description": "Optional development starter data for an independently deployed general store. Persisted through Oracle; never used as runtime mock responses.",
+  "categories": [
+    {"key": "tech", "name": "Connected Living", "description": "Useful technology for focused work and everyday connections."},
+    {"key": "home", "name": "Considered Home", "description": "Comfortable, practical pieces for a calmer home."},
+    {"key": "lifestyle", "name": "Everyday Adventure", "description": "Reusable essentials for commuting, movement and weekends away."}
+  ],
+  "products": [
+    {"key": "headphones", "category": "tech", "name": "Orbit Wireless Headphones", "price": 329.9, "description": "Over-ear headphones with soft ear cushions, USB-C charging and a compact travel case."},
+    {"key": "dock", "category": "tech", "name": "Link USB-C Desk Dock", "price": 249.9, "description": "A compact desk hub with HDMI, USB-A and USB-C connections for an organized workspace."},
+    {"key": "keyboard", "category": "tech", "name": "Focus Compact Keyboard", "price": 219.9, "description": "A compact mechanical keyboard with tactile switches and a detachable USB-C cable."},
+    {"key": "powerbank", "category": "tech", "name": "Pocket USB-C Power Bank", "price": 149.9, "description": "A slim 10000 mAh portable charger with a battery indicator and USB-C charging."},
+    {"key": "lamp", "category": "home", "name": "Halo Reading Lamp", "price": 189.9, "description": "An adjustable reading lamp with three warm light settings and a weighted base."},
+    {"key": "planter", "category": "home", "name": "Nest Ceramic Planter", "price": 69.9, "description": "A matte ceramic planter with a removable drainage tray for small indoor plants."},
+    {"key": "coffee", "category": "home", "name": "Morning Pour-Over Set", "price": 129.9, "description": "A glass coffee server, ceramic dripper and reusable measuring spoon for slow mornings."},
+    {"key": "throw", "category": "home", "name": "Soft Woven Cotton Throw", "price": 159.9, "description": "A breathable cotton throw with a textured weave and a soft fringed edge."},
+    {"key": "daypack", "category": "lifestyle", "name": "Trail Everyday Daypack", "price": 179.9, "description": "A lightweight 18-litre daypack with an internal organizer and two bottle pockets."},
+    {"key": "yogamat", "category": "lifestyle", "name": "Flow Everyday Yoga Mat", "price": 109.9, "description": "A cushioned exercise mat with a textured surface and a carrying strap."},
+    {"key": "bottle", "category": "lifestyle", "name": "Everyday Steel Bottle", "price": 79.9, "description": "A reusable 750 ml stainless-steel bottle with a screw cap and easy-carry loop."},
+    {"key": "organizer", "category": "lifestyle", "name": "Weekend Travel Organizer", "price": 89.9, "description": "A zippered organizer with separate compartments for cables and small travel essentials."}
+  ],
+  "accounts": [
+    {"key": "general-admin", "email": "general-admin@general-store.example.test", "name": "General Store Administrator (demo)", "role": "SUPPORT"},
+    {"key": "support", "email": "support@general-store.example.test", "name": "General Store Support (demo)", "role": "SUPPORT"},
+    {"key": "customer", "email": "customer@general-store.example.test", "name": "General Store Customer (demo)", "role": "CUSTOMER"},
+    {"key": "returning-customer", "email": "returning@general-store.example.test", "name": "General Store Returning Customer (demo)", "role": "CUSTOMER"}
+  ],
+  "addresses": [
+    {"key": "customer-home", "account": "customer", "street": "10 Example Avenue", "city": "Demo City", "postalCode": "000000", "country": "RO"},
+    {"key": "returning-home", "account": "returning-customer", "street": "20 Sample Lane", "city": "Demo City", "postalCode": "000001", "country": "RO"}
+  ],
+  "cart": [
+    {"account": "customer", "product": "headphones", "quantity": 1},
+    {"account": "customer", "product": "bottle", "quantity": 2},
+    {"account": "returning-customer", "product": "lamp", "quantity": 1}
+  ],
+  "wishlist": [
+    {"account": "customer", "product": "daypack"},
+    {"account": "customer", "product": "dock"},
+    {"account": "returning-customer", "product": "coffee"},
+    {"account": "returning-customer", "product": "throw"}
+  ],
+  "orders": [
+    {"key": "customer-order", "account": "customer", "daysAgo": 2, "lines": [{"product": "yogamat", "quantity": 1}, {"product": "bottle", "quantity": 1}]},
+    {"key": "returning-order", "account": "returning-customer", "daysAgo": 7, "lines": [{"product": "planter", "quantity": 2}, {"product": "coffee", "quantity": 1}]}
+  ],
+  "reviews": [
+    {"key": "mat-review", "account": "customer", "product": "yogamat", "rating": 4, "text": "Demo review: comfortable surface and easy to roll up."},
+    {"key": "bottle-review", "account": "customer", "product": "bottle", "rating": 5, "text": "Demo review: a useful size for a daily bag."},
+    {"key": "coffee-review", "account": "returning-customer", "product": "coffee", "rating": 4, "text": "Demo review: simple pieces for a relaxed morning routine."}
+  ],
+  "cms": [
+    {"key": "collections", "slug": "general-store-collections", "title": "Everyday essentials, thoughtfully selected", "excerpt": "Explore technology, home and lifestyle collections in the general-store starter catalog.", "body": "<h2>Make room for everyday essentials</h2><p>Explore Connected Living, Considered Home and Everyday Adventure: three starter collections for an independent general store.</p><p>This is editable demonstration content. Replace product descriptions, images and commercial terms before launching a real store.</p>", "status": "PUBLISHED"},
+    {"key": "store-story", "slug": "general-store-our-story", "title": "Our general-store story", "excerpt": "A starting point for your own brand story.", "body": "<h2>A store built around daily life</h2><p>Useful technology, a comfortable home and time outdoors inspire this demonstration collection.</p><p>Customize this page with your own team, values and product-selection standards. Each deployed platform owns its own content and customer data.</p>", "status": "PUBLISHED"},
+    {"key": "buying-guide", "slug": "general-store-buying-guide", "title": "Find your everyday essentials", "excerpt": "A starter buying guide for tech, home and lifestyle products.", "body": "<h2>Choose what works for your routine</h2><p>Start with your workspace, then explore home accessories and reusable travel essentials. Check each product's description before adding it to your cart.</p><p>Account addresses, carts and wishlists are stored by the backend. The local checkout demonstrates order creation and pending payment registration; no payment is charged.</p>", "status": "PUBLISHED"},
+    {"key": "launch-checklist", "slug": "general-store-launch-checklist", "title": "Store launch checklist", "excerpt": "Internal draft content to replace before publishing.", "body": "<h2>Before publishing your independent store</h2><p>Configure brand identity, product imagery, domains, currency, shipping, returns and support contacts. Review local account permissions and connect a real payment provider.</p><p>This page is intentionally a draft and must remain hidden from the public CMS listing.</p>", "status": "DRAFT"}
+  ]
+}

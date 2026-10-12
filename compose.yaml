@@ -1,0 +1,42 @@
+# Standalone development: no parent checkout or sibling repository is required.
+# Supply external service connections with --env-file .env.docker.
+name: shopx-backend-standalone
+
+services:
+  backend:
+    image: shopx-backend:latest
+    build: {context: ., target: development}
+    init: true
+    restart: unless-stopped
+    mem_limit: ${APP_MEMORY_LIMIT:-768m}
+    cpus: ${APP_CPUS:-2}
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-4000}:4000"]
+    environment:
+      NODE_ENV: "development"
+      NODE_OPTIONS: "--max-old-space-size=512"
+      PORT: "4000"
+      DB_USER: "${DB_USER:?Set DB_USER in .env.docker}"
+      DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env.docker}"
+      DB_PASSWORD_ROTATE: "${DB_PASSWORD_ROTATE:-false}"
+      DB_PASSWORD_NEW: "${DB_PASSWORD_NEW:-}"
+      DB_CONNECT_STRING: "${DB_CONNECT_STRING:?Set DB_CONNECT_STRING in .env.docker}"
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env.docker}"
+      DB_POOL_MIN: "1"
+      DB_POOL_MAX: "${DB_POOL_MAX:-2}"
+      DB_POOL_INCREMENT: "1"
+      REDIS_URL: "${REDIS_URL:-redis://host.docker.internal:6379/1}"
+      REDIS_DISABLED: "${REDIS_DISABLED:-false}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3100,http://localhost:8083}"
+      PUBLIC_ASSET_BASE_URL: "${PUBLIC_ASSET_BASE_URL:-http://localhost:4000}"
+    volumes:
+      - ./src:/app/src:ro
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/health/ready').then(async r=>{if(!r.ok||!(await r.json()).ready)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+      start_period: 90s

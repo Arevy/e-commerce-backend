@@ -2,6 +2,9 @@
 import oracledb from 'oracledb'
 import { getConnectionFromPool } from '../config/database'
 import { logger } from '../utils/logger'
+import { UserFacingError } from '../utils/graphqlErrorFormatter'
+import { cacheDel } from '../config/redis'
+import { invalidateUserContextCache } from './userContextCache'
 
 export interface OrderProductInput {
   productId: number
@@ -127,14 +130,22 @@ const attachItems = async (
 }
 
 export const OrderService = {
-  create: async (userId: number, products: OrderProductInput[]) => {
+  create: async (userId: number, products: OrderProductInput[], consumeCart = false) => {
+    if (!products.length || products.some(p => !Number.isSafeInteger(p.quantity) || p.quantity <= 0 ||
+        !Number.isSafeInteger(p.productId) || p.productId <= 0) ||
+        new Set(products.map(p => p.productId)).size !== products.length) {
+      throw new UserFacingError('Order products and quantities must be valid.', {code: 'INVALID_ORDER'})
+    }
     const conn = await getConnectionFromPool()
     let orderId: number | null = null
     try {
-      const total = products.reduce(
-        (sum, p) => sum + p.price * p.quantity,
-        0,
-      )
+      const pricedProducts: OrderProductInput[] = []
+      for (const product of products) {
+        const result = await conn.execute('SELECT PRICE FROM PRODUCTS WHERE ID = :id', {id: product.productId})
+        if (!result.rows?.length) throw new UserFacingError('Product not found.', {code: 'PRODUCT_NOT_FOUND'})
+        pricedProducts.push({...product, price: Number(result.rows[0][0])})
+      }
+      const total = pricedProducts.reduce((sum, p) => sum + Math.round(p.price * 100) * p.quantity, 0) / 100
 
       const resOrder = await conn.execute(
         `INSERT INTO ORDERS (USER_ID, TOTAL, STATUS, CREATED_AT, UPDATED_AT)
@@ -149,7 +160,7 @@ export const OrderService = {
       )
       orderId = (resOrder.outBinds as any).orderId[0]
 
-      for (const p of products) {
+      for (const p of pricedProducts) {
         await conn.execute(
           `INSERT INTO ORDER_ITEMS (ORDER_ID, PRODUCT_ID, QUANTITY, PRICE)
            VALUES (:orderId, :productId, :quantity, :price)`,
@@ -163,6 +174,14 @@ export const OrderService = {
         )
       }
 
+      if (consumeCart) {
+        for (const p of pricedProducts) {
+          await conn.execute('DELETE FROM CART_ITEMS WHERE USER_ID = :userId AND PRODUCT_ID = :productId AND QUANTITY <= :quantity',
+            {userId, productId: p.productId, quantity: p.quantity})
+          await conn.execute('UPDATE CART_ITEMS SET QUANTITY = QUANTITY - :quantity WHERE USER_ID = :userId AND PRODUCT_ID = :productId',
+            {userId, productId: p.productId, quantity: p.quantity})
+        }
+      }
       await conn.commit()
     } catch (err) {
       try {
@@ -180,6 +199,10 @@ export const OrderService = {
       throw new Error('Order creation failed')
     }
 
+    if (consumeCart) {
+      await cacheDel(`cart:${userId}`)
+      await invalidateUserContextCache(userId)
+    }
     const createdOrder = await fetchOrderWithItems(orderId)
     if (!createdOrder) {
       throw new Error('Failed to load created order')

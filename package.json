@@ -12,7 +12,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "node --test tests/*.test.cjs",
+    "test:sql": "node --test tests/sql-bootstrap.integration.cjs",
+    "test:data": "node --test tests/data-seeding.integration.cjs",
+    "data:seed": "node scripts/seed-data.cjs"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.14",

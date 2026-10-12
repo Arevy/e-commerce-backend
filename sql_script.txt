@@ -1,7 +1,13 @@
--- Schema bootstrap for the e-commerce backend.
--- Run the statements below using an Oracle client connected as a user with the
--- required privileges. Re-running the script is idempotent: it drops any
--- existing tables before recreating the schema and reseeding data.
+-- Destructive demo reset for the e-commerce backend, using SQL*Plus / SQLcl.
+-- Run only in a disposable application schema, never in an existing data set.
+-- This is not a migration or a backup. Oracle DDL commits implicitly: an error
+-- stops execution and rolls back pending DML, but cannot restore dropped tables.
+-- For additive, repeatable starter data in an existing database, use
+-- npm run data:seed (plan) / npm run data:seed -- --apply --expect-schema SCHEMA.
+-- Dataset: data/general-store-v1.json. See docs/data-seeding.md.
+
+WHENEVER OSERROR EXIT FAILURE ROLLBACK
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 SET DEFINE OFF;
 
@@ -18,8 +24,10 @@ DECLARE
   END;
 BEGIN
   -- Drop children before parents to satisfy foreign-key dependencies
+  drop_table('SHOPX_DATASET_RUNS'); -- A full disposable reset also resets seed history
   drop_table('PAYMENTS');
   drop_table('ORDER_ITEMS');
+  drop_table('ORDER_PRODUCTS'); -- Legacy order lines; do not leave orphaned rows
   drop_table('ORDERS');
   drop_table('REVIEWS');
   drop_table('WISHLIST');
@@ -50,6 +58,7 @@ CREATE TABLE PRODUCTS (
   IMAGE_MIME_TYPE VARCHAR2(128),
   IMAGE_DATA   BLOB,
   IMAGE_UPDATED_AT TIMESTAMP,
+  CONSTRAINT CK_PRODUCTS_PRICE CHECK (PRICE >= 0),
   CONSTRAINT FK_PRODUCTS_CATEGORIES
     FOREIGN KEY (CATEGORY_ID) REFERENCES CATEGORIES (ID)
 );
@@ -84,6 +93,7 @@ CREATE TABLE ORDERS (
   STATUS     VARCHAR2(50) NOT NULL,
   CREATED_AT TIMESTAMP DEFAULT SYSTIMESTAMP,
   UPDATED_AT TIMESTAMP DEFAULT SYSTIMESTAMP,
+  CONSTRAINT CK_ORDERS_TOTAL CHECK (TOTAL >= 0),
   CONSTRAINT FK_ORDERS_USERS
     FOREIGN KEY (USER_ID) REFERENCES USERS (ID)
 );
@@ -95,6 +105,8 @@ CREATE TABLE ORDER_ITEMS (
   QUANTITY   NUMBER NOT NULL,
   PRICE      NUMBER(10, 2) NOT NULL,
   CONSTRAINT PK_ORDER_ITEMS PRIMARY KEY (ORDER_ID, PRODUCT_ID),
+  CONSTRAINT CK_ORDER_ITEMS_QUANTITY CHECK (QUANTITY > 0 AND QUANTITY = TRUNC(QUANTITY)),
+  CONSTRAINT CK_ORDER_ITEMS_PRICE CHECK (PRICE >= 0),
   CONSTRAINT FK_ORDER_ITEMS_ORDERS
     FOREIGN KEY (ORDER_ID) REFERENCES ORDERS (ID) ON DELETE CASCADE,
   CONSTRAINT FK_ORDER_ITEMS_PRODUCTS
@@ -107,6 +119,8 @@ CREATE TABLE CART_ITEMS (
   PRODUCT_ID NUMBER NOT NULL,
   QUANTITY   NUMBER NOT NULL,
   CONSTRAINT PK_CART_ITEMS PRIMARY KEY (USER_ID, PRODUCT_ID),
+  -- Zero is allowed for the cart MERGE, which atomically removes rows with zero quantity.
+  CONSTRAINT CK_CART_ITEMS_QUANTITY CHECK (QUANTITY >= 0 AND QUANTITY = TRUNC(QUANTITY)),
   CONSTRAINT FK_CART_ITEMS_USERS
     FOREIGN KEY (USER_ID) REFERENCES USERS (ID) ON DELETE CASCADE,
   CONSTRAINT FK_CART_ITEMS_PRODUCTS
@@ -147,6 +161,7 @@ CREATE TABLE REVIEWS (
   REVIEW_TEXT VARCHAR2(1000),
   CREATED_AT  TIMESTAMP DEFAULT SYSTIMESTAMP,
   UPDATED_AT  TIMESTAMP,
+  CONSTRAINT CK_REVIEWS_RATING CHECK (RATING BETWEEN 1 AND 5 AND RATING = TRUNC(RATING)),
   CONSTRAINT FK_REVIEWS_PRODUCTS
     FOREIGN KEY (PRODUCT_ID) REFERENCES PRODUCTS (ID) ON DELETE CASCADE,
   CONSTRAINT FK_REVIEWS_USERS
@@ -161,6 +176,7 @@ CREATE TABLE PAYMENTS (
   METHOD     VARCHAR2(50) NOT NULL,
   STATUS     VARCHAR2(50) NOT NULL,
   CREATED_AT TIMESTAMP DEFAULT SYSTIMESTAMP,
+  CONSTRAINT CK_PAYMENTS_AMOUNT CHECK (AMOUNT >= 0),
   CONSTRAINT FK_PAYMENTS_ORDERS
     FOREIGN KEY (ORDER_ID) REFERENCES ORDERS (ID) ON DELETE CASCADE
 );

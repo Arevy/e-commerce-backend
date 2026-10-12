@@ -16,19 +16,22 @@ import { wishlistResolver } from './graphql/resolvers/wishlistResolver'
 import { customerSupportResolver } from './graphql/resolvers/customerSupportResolver'
 import { cmsResolver } from './graphql/resolvers/cmsResolver'
 import { userContextResolver } from './graphql/resolvers/userContextResolver'
-import { connectToDatabase, closeDatabaseConnection } from './config/database'
-import { connectRedis, disconnectRedis } from './config/redis'
+import { connectToDatabase, closeDatabaseConnection, getConnectionFromPool } from './config/database'
+import { connectRedis, disconnectRedis, checkRedisHealth } from './config/redis'
 import { SessionService, parseSessionCookie } from './services/sessionService'
 import { ProductService } from './services/productService'
 import type { GraphQLContext } from './graphql/context'
 import { formatGraphQLError } from './utils/graphqlErrorFormatter'
 import { createGraphqlHandler } from './middleware/createGraphqlHandler'
+import { protectAdministrativeFields } from './graphql/authorization'
 
 const DEFAULT_LOCAL_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3100',
   'http://localhost:5010',
   'http://localhost:8081',
+  'http://localhost:8082',
+  'http://localhost:8083',
   'http://127.0.0.1:8082',
   'http://127.0.0.1:8083',
 ]
@@ -97,6 +100,22 @@ export const startServer = async () => {
   await connectToDatabase()
   await connectRedis()
 
+  app.get('/health/live', (_req, res) => res.json({ alive: true }))
+  app.get('/health/ready', async (_req, res) => {
+    let database = false
+    try {
+      const connection = await getConnectionFromPool()
+      try {
+        await connection.execute('SELECT COUNT(*) FROM PRODUCTS WHERE ROWNUM <= 1')
+        database = true
+      } finally { await connection.close() }
+    } catch { /* Readiness describes dependency state without exposing connection details. */ }
+    const redis = await checkRedisHealth()
+    const ready = database && redis.ready
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(ready ? 200 : 503).json({ ready, database, redis })
+  })
+
   app.get('/products/:id/image', async (req, res) => {
     const productId = Number(req.params.id)
     if (!Number.isFinite(productId) || productId <= 0) {
@@ -143,6 +162,8 @@ export const startServer = async () => {
     ],
   })
 
+  protectAdministrativeFields(executableSchema)
+
   const buildContext = async (
     req: Request,
     res: Response,
@@ -163,9 +184,9 @@ export const startServer = async () => {
     })()
 
     const sessionId = parseSessionCookie(req.headers.cookie, preferSupport)
-    const session = sessionId
-      ? await SessionService.getSession(sessionId)
-      : null
+    const session = req.headers.authorization
+      ? await SessionService.getSessionFromAuthorization(req.headers.authorization)
+      : sessionId ? await SessionService.getSession(sessionId) : null
     return { req, res, session }
   }
 

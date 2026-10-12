@@ -76,23 +76,38 @@ export const PaymentService = {
     orderId: number,
     amount: number,
     method: string,
+    reusePending = false,
   ): Promise<Payment> => {
     const conn = await getConnectionFromPool()
     let paymentId: number | null = null
     try {
-      const res = await conn.execute(
-        `INSERT INTO PAYMENTS (ORDER_ID, AMOUNT, METHOD, STATUS, CREATED_AT)
+      if (reusePending) {
+        await conn.execute('SELECT ID FROM ORDERS WHERE ID = :id FOR UPDATE', {id: orderId})
+        const pending = await conn.execute(
+          `SELECT ID FROM PAYMENTS WHERE ORDER_ID = :id AND STATUS = 'PENDING' AND AMOUNT = :amount AND METHOD = :method ORDER BY ID`,
+          {id: orderId, amount, method},
+        )
+        if (pending.rows?.length) paymentId = Number(pending.rows[0][0])
+      }
+      if (!paymentId) {
+        const res = await conn.execute(
+          `INSERT INTO PAYMENTS (ORDER_ID, AMOUNT, METHOD, STATUS, CREATED_AT)
          VALUES (:oid,:amt,:mtd,'PENDING',SYSTIMESTAMP)
          RETURNING ID INTO :pid`,
-        {
-          oid: orderId,
-          amt: amount,
-          mtd: method,
-          pid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
-        },
-        { autoCommit: true },
-      )
-      paymentId = (res.outBinds as any).pid[0]
+          {
+            oid: orderId,
+            amt: amount,
+            mtd: method,
+            pid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+          },
+          { autoCommit: false },
+        )
+        paymentId = (res.outBinds as any).pid[0]
+      }
+      await conn.commit()
+    } catch (error) {
+      await conn.rollback()
+      throw error
     } finally {
       await conn.close()
     }

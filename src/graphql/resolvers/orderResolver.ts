@@ -27,6 +27,7 @@ export const orderResolver = {
           quantity: item.quantity,
           price: item.price,
         })),
+        true,
       )
     },
 

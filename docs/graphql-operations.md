@@ -1,39 +1,39 @@
-# GraphQL Operations Catalogue
+# GraphQL operations guide
 
-Reference guide covering every query and mutation exposed by the backend, plus a
-verification playbook so you can exercise each resolver end-to-end. All seeded
-IDs originate from `sql_script.txt`, which rebuilds the schema from scratch on
-every run.
+Examples for the current [backend schema](../src/graphql/schema.ts), reviewed on October 11, 2026. This guide covers each domain and preserves the manual create/read/update/delete workflows. The schema is the authoritative list of fields and argument types; the operation inventory below includes fields without a full example.
 
-> **Identity note**: Authentication now relies on HTTP-only session cookies. Most
-> customer-facing mutations still accept an explicit `userId`, but resolvers
-> validate that the `sid` cookie corresponds to the provided id. Support-only
-> operations live under the `customerSupport` namespace and require a support
-> session established via the `login` mutation.
+## Environment and identity
 
-## Seeded Dataset Snapshot
-- **Users**
-  - `alice@example.com` (`Password123!`, role `CUSTOMER`) → `id = 1`
-  - `bob@example.com` (`Password123!`, role `CUSTOMER`) → `id = 2`
-  - `support@example.com` (`Password123!`, role `SUPPORT`) → `id = 3`
-- **Categories**
-  - `1 = Electronics`, `2 = Books`, `3 = Clothing`
-- **Products**
-  - `1 = Laptop`, `2 = Smartphone`, `3 = Novel`
-- **Orders & Payments**
-  - Order `1` (Alice) pending, total `1499.98`, payment `1` authorised
-  - Order `2` (Bob) shipped, total `19.99`, payment `2` captured
-- **Miscellaneous**
-  - Alice cart: Laptop ×1, Smartphone ×2
-  - Alice wishlist: Novel; Bob wishlist: Laptop
-  - Reviews seeded for each product (IDs start at 1)
+Use `POST http://localhost:4000/graphql` or the application's same-origin proxy. Browser clients retain the HttpOnly session cookie (`sid` for customers, `support_sid` for support). Native clients send `Authorization: Bearer <token>` using the token returned by `login`. The token is linked to the active server session: logout or support revocation invalidates it. A JWT signature alone is insufficient.
 
-The sections below first confirm read-side behaviour with the seeded data, then
-walk through create/update/delete flows that generate additional fixtures you
-can reuse for subsequent checks.
+For direct support requests when both cookies are present, send `x-shopx-support-session: 1` to prefer the support cookie. The admin proxy already does this. Use a separate customer session for customer flows and pass that user's actual ID. A `userId` argument does not grant permission to access another account.
+
+Run one named operation at a time and supply its variables. Credentials must come from your private test configuration; no universal login/password is documented here. Registration returns a user, not an authenticated session: log in afterward. Keep cookie jars and Bearer tokens private.
+
+## Test data and mutation scope
+
+The demo reset contains 11 categories, 33 products, 16 users, 17 addresses, 23 orders, 41 order items, 23 payments, 15 cart items, 15 wishlist entries, eight CMS pages, and ten reviews. These counts describe a fresh isolated seed, not recovered `AREVY`, which includes later changes. See the [SQL guide](../README.md#schema-and-sql-script).
+
+Use IDs returned by queries or by your own fixture creation. ID variables deliberately avoid binding examples to seed users or products. Derive totals from current responses instead of assuming sample prices.
+
+Mutation examples create, modify, or delete records. Use a dedicated test schema and disposable fixtures, not the recovered catalog. Do not run `sql_script.txt` to prepare an existing application database: it drops tables. Sections are independent recipes rather than one script to execute top-to-bottom. In particular, retain an order until its payment checks finish, then remove dependent fixtures in reverse order.
+
+## Authorization reference
+
+| Operation family | Current requirement or limitation |
+| --- | --- |
+| Products/categories/review reads | Public queries |
+| CMS reads | `getCmsPage` returns published content; `getCmsPages` defaults to PUBLISHED, but its explicit status filter still needs authorization review |
+| Register/login | Public; login creates the server session |
+| User context, cart, wishlist, addresses, orders, payment creation/read | Authenticated session and applicable ownership checks; SUPPORT paths are separate |
+| `getUsers`, product/category/CMS writes, order-status/deletion, payment-status/deletion | SUPPORT, including legacy top-level fields |
+| `customerSupport` | SUPPORT session required |
+| Legacy top-level review mutations | Ownership/session enforcement is incomplete; these examples document the contract, not a completed security boundary |
 
 ## 1. Authentication & Users
+
 ### Verify Queries
+
 ```graphql
 query AllUsers {
   getUsers {
@@ -44,19 +44,21 @@ query AllUsers {
   }
 }
 ```
-Expected: the seeded customers plus the support agent.
+
+This legacy user-list query requires SUPPORT. Expect the users in the active schema, not a fixed seed-account list.
 
 ### Exercise Mutations
+
 ```graphql
-mutation RegisterUser {
-  register(email: "charlie@example.com", password: "Sup3rSecret!", name: "Charlie") {
+mutation RegisterUser($email: String!, $password: String!, $name: String) {
+  register(email: $email, password: $password, name: $name) {
     id
     email
   }
 }
 
-mutation LoginAlice {
-  login(email: "alice@example.com", password: "Password123!") {
+mutation LoginUser($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
     token
     user {
       id
@@ -65,19 +67,21 @@ mutation LoginAlice {
   }
 }
 ```
+
 ```graphql
-mutation LogoutAlice {
+mutation LogoutUser {
   logout
 }
 ```
 
-
-`login` now sets an HTTP-only `sid` cookie. Call `logout` to invalidate the session and delete the cookie. Admin tooling can also revoke sessions in bulk; see the customer support section below.
+`login` sets the appropriate HttpOnly session cookie and returns a session-bound Bearer token. `logout` invalidates the session and expires the corresponding cookie. Admin tooling can revoke a customer's sessions; see the support section below.
 
 Use the returned `id` from `register` for further flows (addresses, orders, etc.).
 
 ## 2. Catalog (Categories & Products)
+
 ### Verify Queries
+
 ```graphql
 query CategoryListing {
   getCategories {
@@ -87,23 +91,30 @@ query CategoryListing {
   }
 }
 
-query ElectronicsOnly {
-  getProducts(categoryId: 1) {
+query ProductsByCategory($categoryId: ID!) {
+  getProducts(categoryId: $categoryId) {
     id
     name
     price
-    category { name }
-    image { url }
+    category {
+      name
+    }
+    image {
+      url
+    }
   }
 }
 
-query ProductDetails {
-  getProductById(id: 1) {
+query ProductDetails($id: ID!) {
+  getProductById(id: $id) {
     id
     name
     description
     price
-    category { id name }
+    category {
+      id
+      name
+    }
     image {
       url
       mimeType
@@ -112,9 +123,9 @@ query ProductDetails {
 }
 ```
 
-### Mutation Flow (create → update → delete)
+### Mutation Flow (create → update → delete; SUPPORT required)
+
 ```graphql
-# 1. Create a disposable category + product
 mutation CreateCategoryAndProduct {
   newCategory: addCategory(name: "Accessories", description: "Laptop add-ons") {
     id
@@ -122,6 +133,7 @@ mutation CreateCategoryAndProduct {
   }
 }
 ```
+
 Take note of `newCategory.id`, then:
 
 ```graphql
@@ -131,16 +143,14 @@ mutation CreateAccessory($categoryId: ID!) {
     price: 79.99
     description: "7-in-1 USB-C hub"
     categoryId: $categoryId
-    image: {
-      filename: "hub.png"
-      mimeType: "image/png"
-      base64Data: "data:image/png;base64,iVBORw0..."
-    }
+    image: {filename: "hub.png", mimeType: "image/png", base64Data: "data:image/png;base64,iVBORw0..."}
   ) {
     id
     name
     price
-    image { url }
+    image {
+      url
+    }
   }
 }
 ```
@@ -156,7 +166,9 @@ mutation UpdateAccessory($productId: ID!) {
     id
     price
     description
-    image { url }
+    image {
+      url
+    }
   }
 }
 
@@ -168,6 +180,7 @@ mutation DeleteAccessoriesCategory($categoryId: ID!) {
   deleteCategory(id: $categoryId)
 }
 ```
+
 `deleteCategory` succeeds only after the related product is removed.
 
 > **Image uploads**: The example above truncates the base64 payload for brevity.
@@ -176,75 +189,108 @@ mutation DeleteAccessoriesCategory($categoryId: ID!) {
 > stored BLOB even if no new file is provided.
 
 ## 3. Cart
+
 ### Verify Query
+
 ```graphql
-query AliceCart {
-  getCart(userId: 1) {
+query CustomerCart($userId: ID!) {
+  getCart(userId: $userId) {
     total
     items {
       product {
         id
         name
         price
-        image { url }
+        image {
+          url
+        }
       }
       quantity
     }
   }
 }
 ```
-Expected total: `999.99 + (2 × 499.99) = 1999.97`.
+
+Check `total` against the current product prices and quantities. `addToCart` accepts an integral delta: use `-1` to decrement; a resulting zero quantity removes the row. The real cart SQL is covered by the isolated SQL tests.
 
 ### Mutation Flow
+
 ```graphql
-mutation AddNovelToCart {
-  addToCart(userId: 1, item: { productId: 3, quantity: 1 }) {
+mutation AddCartItem($userId: ID!, $productId: ID!) {
+  addToCart(userId: $userId, item: {productId: $productId, quantity: 1}) {
     total
-    items { product { id } quantity }
+    items {
+      product {
+        id
+      }
+      quantity
+    }
   }
 }
 
-mutation RemoveLaptopFromCart {
-  removeFromCart(userId: 1, productId: 1) {
+mutation RemoveCartItem($userId: ID!, $productId: ID!) {
+  removeFromCart(userId: $userId, productId: $productId) {
     total
-    items { product { id } quantity }
+    items {
+      product {
+        id
+      }
+      quantity
+    }
   }
 }
 
-mutation ClearBobCart {
-  clearCart(userId: 2)
+mutation ClearCustomerCart($userId: ID!) {
+  clearCart(userId: $userId)
 }
 ```
+
 `clearCart` returns `true` when the deletion succeeds.
 
 ## 4. Wishlist
+
 ### Verify Query
+
 ```graphql
-query BobWishlist {
-  getWishlist(userId: 2) {
-    products { id name price }
+query CustomerWishlist($userId: ID!) {
+  getWishlist(userId: $userId) {
+    products {
+      id
+      name
+      price
+    }
   }
 }
 ```
 
 ### Mutation Flow
+
 ```graphql
-mutation ToggleWishlist {
-  addToWishlist(userId: 1, productId: 2) {
-    products { id name }
+mutation ToggleWishlist($userId: ID!, $productId: ID!, $productId2: ID!) {
+  addToWishlist(userId: $userId, productId: $productId) {
+    products {
+      id
+      name
+    }
   }
-  removeFromWishlist(userId: 1, productId: 3) {
-    products { id name }
+  removeFromWishlist(userId: $userId, productId: $productId2) {
+    products {
+      id
+      name
+    }
   }
 }
 ```
+
 Run the mutations individually if you want to inspect intermediate states.
 
 ## 5. Reviews
+
 ### Verify Query
+
 ```graphql
-query LaptopReviews {
-  getReviews(productId: 1) {
+query ProductReviews($productId: ID!) {
+  getReviews(productId: $productId) {
     id
     rating
     reviewText
@@ -253,23 +299,35 @@ query LaptopReviews {
   }
 }
 ```
-Expected: at least one review from Alice with rating `5`.
+
+Expect the stored reviews for the selected product. A product with no reviews returns an empty list. Review write authorization remains an open audit item.
 
 ### Mutation Flow
+
 ```graphql
-mutation CreateReview {
-  addReview(productId: 2, userId: 1, rating: 3, reviewText: "Decent but pricey") {
+mutation CreateReview($productId: ID!, $userId: ID!) {
+  addReview(
+    productId: $productId
+    userId: $userId
+    rating: 3
+    reviewText: "Decent but pricey"
+  ) {
     id
     rating
     reviewText
   }
 }
 ```
+
 Use the returned `id` (`$reviewId`) for the operations below:
 
 ```graphql
 mutation UpdateReview($reviewId: ID!) {
-  updateReview(reviewId: $reviewId, rating: 4, reviewText: "Improved after update") {
+  updateReview(
+    reviewId: $reviewId
+    rating: 4
+    reviewText: "Improved after update"
+  ) {
     id
     rating
     reviewText
@@ -282,10 +340,12 @@ mutation DeleteReview($reviewId: ID!) {
 ```
 
 ## 6. Addresses
+
 ### Verify Query
+
 ```graphql
-query AliceAddresses {
-  getAddresses(userId: 1) {
+query CustomerAddresses($userId: ID!) {
+  getAddresses(userId: $userId) {
     id
     street
     city
@@ -296,10 +356,11 @@ query AliceAddresses {
 ```
 
 ### Mutation Flow
+
 ```graphql
-mutation AddBobAddress {
+mutation AddCustomerAddress($userId: ID!) {
   addAddress(
-    userId: 2
+    userId: $userId
     street: "221B Baker Street"
     city: "London"
     postalCode: "NW1"
@@ -310,26 +371,29 @@ mutation AddBobAddress {
   }
 }
 ```
+
 Capture the returned `id` (`$addressId`) for update/delete:
 
 ```graphql
-mutation UpdateBobAddress($addressId: ID!) {
+mutation UpdateCustomerAddress($addressId: ID!) {
   updateAddress(addressId: $addressId, postalCode: "NW1 6XE") {
     id
     postalCode
   }
 }
 
-mutation DeleteBobAddress($addressId: ID!) {
+mutation DeleteCustomerAddress($addressId: ID!) {
   deleteAddress(addressId: $addressId)
 }
 ```
 
 ## 7. User Context Aggregate
+
 ### Verify Query
+
 ```graphql
-query AliceContext {
-  getUserContext(userId: 1) {
+query CustomerContext($userId: ID!) {
+  getUserContext(userId: $userId) {
     user {
       id
       email
@@ -344,7 +408,9 @@ query AliceContext {
           id
           name
           price
-          image { url }
+          image {
+            url
+          }
         }
       }
     }
@@ -353,7 +419,9 @@ query AliceContext {
         id
         name
         price
-        image { url }
+        image {
+          url
+        }
       }
     }
     addresses {
@@ -366,27 +434,59 @@ query AliceContext {
   }
 }
 ```
-The response is cached under `user-context:1` in Redis (120-second TTL) and
-hydrates the store front immediately after login.
+
+The backend caches the aggregate under `user-context:<userId>` for 120 seconds. It hydrates the storefront after login. This authorized backend cache is separate from Next.js proxy caches, which bypass private/authenticated requests.
 
 ### Customer Support Variant
+
 ```graphql
-query SupportUserContext {
+query SupportUserContext($userId: ID!) {
   customerSupport {
-    userContext(userId: 1) {
-      user { id email role }
-      cart { total items { product { name image { url } } quantity } }
-      wishlist { products { id name image { url } } }
-      addresses { id street city postalCode country }
+    userContext(userId: $userId) {
+      user {
+        id
+        email
+        role
+      }
+      cart {
+        total
+        items {
+          product {
+            name
+            image {
+              url
+            }
+          }
+          quantity
+        }
+      }
+      wishlist {
+        products {
+          id
+          name
+          image {
+            url
+          }
+        }
+      }
+      addresses {
+        id
+        street
+        city
+        postalCode
+        country
+      }
     }
   }
 }
 ```
+
 Use this call in the admin portal when investigating customer issues—the
 payload mirrors the shopper-facing aggregate but stays scoped to the
 `customerSupport` namespace.
 
 ### Redeem Impersonation Tokens
+
 ```graphql
 mutation RedeemImpersonation($token: String!) {
   redeemImpersonation(token: $token) {
@@ -397,16 +497,19 @@ mutation RedeemImpersonation($token: String!) {
   }
 }
 ```
+
 Executing this mutation exchanges a short-lived impersonation ticket for a new
 session (setting the `sid` cookie) and returns the impersonated user profile.
 It is used by the storefront route `/impersonate?token=…` to mirror a customer
 session opened from the admin portal.
 
 ## 8. Orders
+
 ### Verify Query
+
 ```graphql
-query AliceOrders {
-  getOrders(userId: 1) {
+query CustomerOrders($userId: ID!) {
+  getOrders(userId: $userId) {
     id
     status
     total
@@ -421,14 +524,14 @@ query AliceOrders {
 ```
 
 ### Mutation Flow
+
+For a customer checkout, first add the selected quantities to that customer's cart. `OrderProductInput.price` remains required by the schema, but the backend reads authoritative prices from Oracle and consumes ordered cart lines transactionally. Use the returned `total` for payment registration. Shipping addresses are currently profile data, not order snapshots. Order-creation idempotency after a lost response remains open.
+
 ```graphql
-mutation CreateOrderFromCart {
+mutation CreateOrderFromCart($userId: ID!, $productId: ID!, $productId2: ID!) {
   createOrder(
-    userId: 2
-    products: [
-      { productId: 1, quantity: 1, price: 999.99 }
-      { productId: 3, quantity: 2, price: 19.99 }
-    ]
+    userId: $userId
+    products: [{productId: $productId, quantity: 1, price: 999.99}, {productId: $productId2, quantity: 2, price: 19.99}]
   ) {
     id
     status
@@ -436,7 +539,8 @@ mutation CreateOrderFromCart {
   }
 }
 ```
-Let the returned order ID be `$orderId`:
+
+Keep the returned ID as `$orderId`. The following status/delete operations require SUPPORT. Run deletion only after payment checks and cleanup:
 
 ```graphql
 mutation ProgressOrder($orderId: ID!) {
@@ -447,13 +551,16 @@ mutation RemoveOrder($orderId: ID!) {
   deleteOrder(orderId: $orderId)
 }
 ```
-`deleteOrder` also cleans up `ORDER_ITEMS` via cascading logic in the service.
+
+`deleteOrder` removes `ORDER_ITEMS` in the service transaction. Remove dependent payment records first; order deletion does not perform a financial refund.
 
 ## 9. Payments
+
 ### Verify Query
+
 ```graphql
-query PaymentDetails {
-  getPayment(paymentId: 1) {
+query PaymentDetails($paymentId: ID!) {
+  getPayment(paymentId: $paymentId) {
     id
     orderId
     amount
@@ -465,9 +572,8 @@ query PaymentDetails {
 ```
 
 ### Mutation Flow
-Use the `$orderId` produced in the order flow above (or order `1`) to create a
-new payment. Match the `amount` to the order total (`1499.98` for the seeded
-order, `1039.97` for the sample order in the previous section), then mutate it:
+
+Use the `$orderId` from your order-creation response and set `$amount` to its returned `total`. The authenticated user must own the order (or use the applicable SUPPORT access). `createPayment` records PENDING state; it does not charge a card. Concurrent/repeated requests for the same order, amount, and method reuse a matching PENDING record.
 
 ```graphql
 mutation CreatePayment($orderId: ID!, $amount: Float!) {
@@ -477,7 +583,8 @@ mutation CreatePayment($orderId: ID!, $amount: Float!) {
   }
 }
 ```
-Take the returned `payment.id` as `$paymentId`:
+
+Use the returned `id` as `$paymentId`. Status changes and deletion below require SUPPORT. Setting `REFUNDED` only changes the database record; it does not execute a provider refund.
 
 ```graphql
 mutation UpdatePayment($paymentId: ID!) {
@@ -493,21 +600,20 @@ mutation DeletePayment($paymentId: ID!) {
 ```
 
 ## 10. Miscellaneous Checks
+
 - After any mutation, re-run the corresponding query to confirm the state change
   (e.g., `getCart`, `getWishlist`, `getOrders`).
 - When testing cache-backed flows (cart/wishlist), hit the same query twice—the
-  second call should be served from Redis if available.
+  second call may use the backend cache if it has not been invalidated or expired. Identical responses alone do not prove a cache hit.
 - For regressions or future features, extend this document with new scenarios so
   QA and frontend teams retain a single source of truth.
 
 ## 11. Customer Support Namespace
-The `customerSupport` field exposes a grouped set of resolvers tailored for
-support agents. Every query/mutation available to shoppers is mirrored here so
-agents can audit or remediate data without juggling user-specific IDs. These
-operations now require an authenticated support session (set via the admin
-portal login); direct calls in GraphiQL work when the `sid` cookie is present.
+
+The `customerSupport` namespace groups administrative operations for SUPPORT sessions. It mirrors many commerce operations, but authentication and self-service profile/password fields remain at the root. Explicit customer/object IDs are still required where declared by the schema. Direct GraphiQL requests need a valid support session; cookie presence alone is insufficient. Prefer `support_sid` with `x-shopx-support-session: 1` when both cookies exist.
 
 ### Read Examples
+
 Fetch all orders (optionally filter by `status` or `userId`) alongside support
 roster details:
 
@@ -534,15 +640,15 @@ Other helpful calls include `customerSupport.product(id: ID!)`,
 ID)`.
 
 ### Mutation Examples
-Create a dedicated escalation contact, then immediately seed them with a
-shipping address:
+
+In a disposable test schema, create an escalation contact, then add an address using the returned ID:
 
 ```graphql
-mutation ProvisionSupportUser {
+mutation ProvisionSupportUser($email: String!, $password: String!) {
   customerSupport {
     createUser(
-      email: "agent2@example.com"
-      password: "AnotherSup3rSecret!"
+      email: $email
+      password: $password
       name: "Escalation Desk"
       role: SUPPORT
     ) {
@@ -553,7 +659,8 @@ mutation ProvisionSupportUser {
   }
 }
 ```
-Take the returned `id` and stitch in follow-up calls:
+
+Use the returned `id` in follow-up calls. Run dependent nested support operations as separate requests; do not assume nested fields form a serialized transaction:
 
 ```graphql
 mutation UpdateSupportFixtures($userId: ID!) {
@@ -602,5 +709,153 @@ production). Redeeming the token issues a new session and refreshes the
 cart/wishlist context for that user.
 
 The namespace mirrors cart, wishlist, product, category, order, payment,
-address, and review mutations, so any remediation workflow that exists today can
-be run on behalf of customers from the same GraphQL entry point.
+address, and review mutations, allowing the documented support workflows to use the same GraphQL entry point.
+
+## 12. Profile and password
+
+Both operations use the authenticated session's identity. A profile update requires the current password even if only the display name changes.
+
+```graphql
+mutation UpdateProfile($input: UpdateUserProfileInput!) {
+  updateUserProfile(input: $input) {
+    user {
+      id
+      name
+      email
+      role
+    }
+    message
+  }
+}
+
+mutation ChangePassword($currentPassword: String!, $newPassword: String!) {
+  changeUserPassword(currentPassword: $currentPassword, newPassword: $newPassword)
+}
+```
+
+Supply credentials through private variables. Test incorrect-current-password and invalid-new-password responses on disposable accounts. Do not infer complete recovery/session-rotation behavior from a successful mutation alone.
+
+## 13. CMS
+
+Customers normally list published pages and fetch one by slug:
+
+```graphql
+query PublishedPages {
+  getCmsPages(status: PUBLISHED) {
+    id
+    slug
+    title
+    excerpt
+    publishedAt
+  }
+}
+
+query PublishedPage($slug: String!) {
+  getCmsPage(slug: $slug) {
+    id
+    slug
+    title
+    body
+    status
+    updatedAt
+  }
+}
+```
+
+SUPPORT can inspect drafts through `customerSupport.cmsPages` / `cmsPage`. The top-level listing's explicit status filter still needs a permission audit; do not assume unpublished content is protected by the current listing resolver.
+
+The following writes require SUPPORT. `CmsPageInput` requires `slug`, `title`, and `body` for both create and update; provide all three. Valid statuses are `DRAFT`, `PUBLISHED`, and `ARCHIVED`.
+
+```graphql
+mutation CreatePage($input: CmsPageInput!) {
+  createCmsPage(input: $input) {
+    id
+    slug
+    title
+    status
+  }
+}
+
+mutation UpdatePage($id: ID!, $input: CmsPageInput!) {
+  updateCmsPage(id: $id, input: $input) {
+    id
+    slug
+    title
+    status
+  }
+}
+
+mutation PublishPage($id: ID!) {
+  publishCmsPage(id: $id) {
+    id
+    slug
+    status
+    publishedAt
+  }
+}
+
+mutation DeletePage($id: ID!) {
+  deleteCmsPage(id: $id)
+}
+```
+
+Backend CMS writes invalidate their own cache entries. Public Next.js responses may still be cached until TTL expiry or explicit invalidation. A `publishedAt` value does not establish a background publication scheduler.
+
+## 14. Additional support examples
+
+```graphql
+query SupportSessionAndOrders($limit: Int, $offset: Int) {
+  customerSupport {
+    viewer {
+      id
+      name
+      role
+    }
+    ordersConnection(limit: $limit, offset: $offset) {
+      totalCount
+      items {
+        id
+        userId
+        total
+        status
+      }
+    }
+  }
+}
+
+mutation UpdateCategory($id: ID!, $name: String, $description: String) {
+  updateCategory(id: $id, name: $name, description: $description) {
+    id
+    name
+    description
+  }
+}
+
+mutation DeleteTestUser($id: ID!) {
+  customerSupport {
+    deleteUser(id: $id)
+  }
+}
+```
+
+Delete only disposable users after cleaning dependent fixtures. The namespace also provides single-object lookups and filters listed below; consult schema arguments rather than assuming every operation has the same shape.
+
+## 15. Schema operation inventory
+
+This inventory is derived from the current schema. It preserves discoverability for fields without a full example above; return selections and arguments are defined in [schema.ts](../src/graphql/schema.ts). Schema validation checks syntax/types, not authorization or runtime behavior.
+
+### Query
+
+`getProducts`, `getProductById`, `getCategories`, `getUsers`, `getOrders`, `getCart`, `getWishlist`, `getUserContext`, `getReviews`, `getAddresses`, `getPayment`, `getCmsPages`, `getCmsPage`, `customerSupport`.
+
+### Mutation
+
+`addProduct`, `updateProduct`, `deleteProduct`, `addCategory`, `updateCategory`, `deleteCategory`, `register`, `login`, `logout`, `redeemImpersonation`, `updateUserProfile`, `changeUserPassword`, `createOrder`, `updateOrderStatus`, `deleteOrder`, `addToCart`, `removeFromCart`, `clearCart`, `addToWishlist`, `removeFromWishlist`, `addReview`, `updateReview`, `deleteReview`, `addAddress`, `updateAddress`, `deleteAddress`, `createPayment`, `updatePaymentStatus`, `deletePayment`, `createCmsPage`, `updateCmsPage`, `deleteCmsPage`, `publishCmsPage`, `customerSupport`.
+
+### CustomerSupportQuery
+
+`users`, `user`, `products`, `product`, `categories`, `category`, `viewer`, `orders`, `ordersConnection`, `order`, `addresses`, `address`, `payments`, `payment`, `cart`, `wishlist`, `userContext`, `reviews`, `review`, `cmsPages`, `cmsPage`.
+
+### CustomerSupportMutation
+
+`createUser`, `updateUser`, `deleteUser`, `logoutUserSessions`, `impersonateUser`, `addProduct`, `updateProduct`, `deleteProduct`, `addCategory`, `updateCategory`, `deleteCategory`, `createOrder`, `updateOrderStatus`, `deleteOrder`, `addAddress`, `updateAddress`, `deleteAddress`, `createPayment`, `updatePaymentStatus`, `deletePayment`, `addReview`, `updateReview`, `deleteReview`, `addToCart`, `removeFromCart`, `clearCart`, `addToWishlist`, `removeFromWishlist`, `createCmsPage`, `updateCmsPage`, `publishCmsPage`, `deleteCmsPage`.

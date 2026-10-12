@@ -2,14 +2,12 @@
 import bcrypt from 'bcrypt'
 // @ts-ignore
 import oracledb from 'oracledb'
-import jwt from 'jsonwebtoken'
 import { getConnectionFromPool } from '../config/database'
 import { logger } from '../utils/logger'
 import { User, UserRole } from '../models/user'
 import { invalidateUserContextCache } from './userContextCache'
 import { UserFacingError } from '../utils/graphqlErrorFormatter'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'
 
 const fetchPasswordHash = async (conn: any, id: number): Promise<string> => {
   const result = await conn.execute(
@@ -183,8 +181,7 @@ export const UserService = {
         })
       }
 
-      const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '1h' })
-      return { token, user: { id, email, name, role } }
+      return { user: { id, email, name, role } }
     } catch (err) {
       if (err instanceof UserFacingError) {
         logger.warn(`UserService.login: ${err.userMessage}`)

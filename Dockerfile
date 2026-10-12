@@ -25,6 +25,9 @@ COPY package.json yarn.lock ./
 RUN yarn install --production --frozen-lockfile && yarn cache clean
 
 COPY --from=build /app/dist ./dist
+COPY scripts ./scripts
+COPY migrations ./migrations
+COPY data ./data
 
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

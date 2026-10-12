@@ -23,8 +23,11 @@ const memoryCache = new Map<
 >()
 
 const shouldDisableRedis = () => process.env.REDIS_DISABLED === 'true'
+const requiresRedis = () => Boolean(process.env.PLATFORM_ID)
+const unavailable = () => new Error('Platform session storage is unavailable')
 
 export const connectRedis = async () => {
+  if (requiresRedis() && shouldDisableRedis()) throw unavailable()
   if (client || isRedisReady || shouldDisableRedis()) {
     return client
   }
@@ -34,14 +37,20 @@ export const connectRedis = async () => {
     const redisModule = require('redis') as typeof import('redis')
 
     const url = process.env.REDIS_URL
+    const reconnectStrategy = requiresRedis()
+      ? (attempt: number) => Math.min(250 * (attempt + 1), 3000)
+      : (false as const)
     const redisClient = url
-      ? redisModule.createClient({ url, disableOfflineQueue: true,
-          socket: { connectTimeout: 3000, reconnectStrategy: false } })
+      ? redisModule.createClient({
+          url,
+          disableOfflineQueue: true,
+          socket: { connectTimeout: 3000, reconnectStrategy },
+        })
       : redisModule.createClient({
           disableOfflineQueue: true,
           socket: {
             connectTimeout: 3000,
-            reconnectStrategy: false,
+            reconnectStrategy,
             host: process.env.REDIS_HOST || '127.0.0.1',
             port: Number(process.env.REDIS_PORT || 6379),
           },
@@ -65,10 +74,16 @@ export const connectRedis = async () => {
 }
 
 export const checkRedisHealth = async () => {
-  if (shouldDisableRedis()) return { ready: true, mode: 'memory' }
+  if (shouldDisableRedis()) return { ready: !requiresRedis(), mode: 'memory' }
+  if (!client && requiresRedis()) await connectRedis()
   try {
-    return { ready: Boolean(client?.isReady && await client.ping() === 'PONG'), mode: 'redis' }
-  } catch { return { ready: false, mode: 'redis' } }
+    return {
+      ready: Boolean(client?.isReady && (await client.ping()) === 'PONG'),
+      mode: 'redis',
+    }
+  } catch {
+    return { ready: false, mode: 'redis' }
+  }
 }
 
 export const disconnectRedis = async () => {
@@ -107,6 +122,11 @@ const deleteFromMemory = (key: string) => {
 }
 
 export const cacheGet = async <T>(key: string): Promise<T | null> => {
+  if (requiresRedis()) {
+    if (!client?.isReady) throw unavailable()
+    const value = await client.get(key)
+    return value ? (JSON.parse(value) as T) : null
+  }
   if (client && isRedisReady) {
     try {
       const value = await client.get(key)
@@ -128,6 +148,15 @@ export const cacheSet = async <T>(
   ttlSeconds?: number,
 ) => {
   const stringified = JSON.stringify(value)
+  if (requiresRedis()) {
+    if (!client?.isReady) throw unavailable()
+    await client.set(
+      key,
+      stringified,
+      ttlSeconds ? { EX: ttlSeconds } : undefined,
+    )
+    return
+  }
   setInMemory(key, stringified, ttlSeconds)
 
   if (client && isRedisReady) {
@@ -141,6 +170,11 @@ export const cacheSet = async <T>(
 }
 
 export const cacheDel = async (key: string) => {
+  if (requiresRedis()) {
+    if (!client?.isReady) throw unavailable()
+    await client.del(key)
+    return
+  }
   deleteFromMemory(key)
 
   if (client && isRedisReady) {

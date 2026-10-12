@@ -1,10 +1,14 @@
 import crypto from 'crypto'
+import jwt from 'jsonwebtoken'
 import type { Response } from 'express'
 import { cacheDel, cacheGet, cacheSet } from '../config/redis'
 import { logger } from '../utils/logger'
 import type { UserRole } from '../models/user'
 
-const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7) // 7 days
+const configuredTtl = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)
+const SESSION_TTL_SECONDS = Number.isSafeInteger(configuredTtl) && configuredTtl > 0
+  ? Math.min(configuredTtl, 60 * 60 * 24 * 30)
+  : 60 * 60 * 24 * 7
 const IMPERSONATION_TTL_SECONDS = Number(process.env.IMPERSONATION_TTL_SECONDS || 60)
 
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sid'
@@ -102,6 +106,26 @@ const touchUserSessionsBucket = async (userId: number, sessionIds: string[]) => 
 }
 
 export const SessionService = {
+  createAccessToken(session: SessionRecord): string {
+    if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET must be configured')
+    return jwt.sign({ sessionId: session.id, userId: session.userId }, process.env.JWT_SECRET, {
+      algorithm: 'HS256', expiresIn: SESSION_TTL_SECONDS,
+    })
+  },
+
+  async getSessionFromAuthorization(authorization: string): Promise<SessionRecord | null> {
+    const match = /^Bearer (\S+)$/i.exec(authorization)
+    if (!match || !process.env.JWT_SECRET) return null
+    let payload: jwt.JwtPayload
+    try {
+      const verified = jwt.verify(match[1], process.env.JWT_SECRET, { algorithms: ['HS256'] })
+      if (typeof verified === 'string' || typeof verified.sessionId !== 'string') return null
+      payload = verified
+    } catch { return null }
+    const session = await SessionService.getSession(payload.sessionId)
+    return session && session.userId === payload.userId ? session : null
+  },
+
   async createSession(params: {
     userId: number
     email: string

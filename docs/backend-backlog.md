@@ -1,59 +1,91 @@
-# Backend Backlog
+# Backend backlog
 
-This document tracks the outstanding work required to cover customer- and admin-side
-functional needs for the e-commerce backend.
+Reviewed against the current source on October 11, 2026. This separates implemented foundations from remaining work; it does not claim production readiness. See the [backend README](../README.md) for setup and the [workspace verification record](../../docs/development-status.md) for the environments actually tested.
 
-## Security & Identity
-- Expand session management beyond single-factor login: support device/session listings, rotation, and optional refresh tokens tied to the Redis store (`src/services/sessionService.ts`).
-- Extend role-based access control so merchandising/marketing roles have tailored scopes beyond the current customer/support split (`src/graphql/schema.ts:164`).
-- Add password reset, email verification, and account recovery flows to harden authentication (`src/services/userService.ts:36`).
-- Provide auditing and login attempt throttling to mitigate brute-force attacks (`src/services/userService.ts:42`).
+## Implemented foundations
 
-## Catalog & Product Experience
-- Extend products with inventory, SKU, media, and attribute data; the current table lacks stock, SKU, and image fields (`sql_script.txt:12`).
-- Add search facets (price range, availability, tags) and pagination metadata to product queries (`src/services/productService.ts:21`).
-- Support draft/published flags and scheduling for merchandise so the admin can stage updates (`src/graphql/schema.ts:6`).
-- Implement bulk import/export and versioning for products and categories for large catalogs (`src/services/productService.ts:90`).
+| Area previously listed as missing | Current state | Remaining work |
+| --- | --- | --- |
+| Sessions and revocation | Redis-backed sessions, separate customer/support cookies, session-bound Bearer tokens, forced logout, and impersonation tickets | Device/session listing API, rotation/refresh policy, recovery, audit, and throttling |
+| Product images | Oracle BLOB fields, image upload/removal, and public image URLs | SKU, inventory, richer attributes/media, and publishing workflow |
+| Trusted order prices | Customer orders use Oracle prices and validate positive integral quantities; ordered cart lines are consumed transactionally | Stock checks, price-change UX, taxes, shipping, discounts, and order-creation idempotency |
+| Customer account | Profile update, password change, addresses, and order-history query exist | Account recovery/deletion workflows, invoices, preferences, and broader flow coverage |
+| Support order queries | `customerSupport.orders`, `ordersConnection`, and `order` provide listing/filtering/pagination | Fulfillment model, richer status history, returns, and notifications |
+| Dependency health | `/health/live` and `/health/ready`, including Oracle/Redis readiness | HTTP request draining, structured observability, and recovery behavior |
+| Automated tests | Session/authorization regression tests and a separate Oracle SQL integration runner exist | Broader service/resolver, security, concurrency, and CI coverage |
+| SQL reset and local orchestration | Reset script has fail-fast behavior, legacy-table cleanup, constraints, and nine isolated test scenarios; Compose connects existing Oracle | Nondestructive migrations, backups/external volumes, and production-image verification |
+| Versioned starter data | Standalone additive installer, a general-store pack, private credentials/snapshots, and Oracle preservation/rollback/concurrency tests | More verticals, product imagery, independent provisioning and recovery tooling |
 
-## Cart & Checkout
-- Validate product prices and availability during order creation instead of trusting client-sent values (`src/services/orderService.ts:77`).
-- Enforce quantity limits, stock checks, and product existence when adding to cart/wishlist (`src/services/cartService.ts:60`, `src/services/wishlistService.ts:47`).
-- Capture shipping/billing addresses and shipping method selections as part of checkout (`sql_script.txt:44` lacks these fields on `ORDERS`).
-- Calculate taxes, shipping costs, discounts, and promotions server-side to prevent tampering (`src/services/orderService.ts:77`).
+## Independent platform generation
 
-## Payments & Financials
-- Integrate with real payment providers and handle asynchronous webhook updates; the current service only records manual statuses (`src/services/paymentService.ts:25`).
-- Store transaction references, billing details, and support multiple payment attempts per order (`sql_script.txt:107`).
-- Implement refunds, voids, and reconciliation processes for admins (`src/services/paymentService.ts:58`).
+- Define a versioned platform manifest for branding, domains, locales/currency, capabilities, selected data pack and references to external secrets. The current data pack is a reusable input, not a running-platform generator.
+- Generate independent deployment/configuration artifacts with a preview mode and explicit schema migrations. Root Compose remains a local integration environment, not a dependency of independently cloned repositories.
+- Add a backend-owned store-configuration contract. Align currency before expanding customization: the storefront currently displays RON, RN displays EUR and admin product prices use a dollar sign, while product prices contain no currency field.
+- Introduce scoped platform roles and a separate global control plane with authorization/isolation tests. The starter's general administrator and support operator both use the existing `SUPPORT` role.
+- Isolate Oracle schemas, Redis/session data, credentials and domain/cookie boundaries per platform. Current backend Redis keys have no platform prefix; distinct Next.js cache prefixes alone do not isolate instances.
 
-## Order Management & Fulfillment
-- Provide admin-side queries to list and filter orders across all customers (`src/graphql/resolvers/orderResolver.ts:10`).
-- Model shipping/fulfillment entities (shipments, tracking numbers, carriers, status history) absent from the schema (`sql_script.txt:44`).
-- Support returns, exchanges, and order cancellations with inventory rollbacks and payment adjustments (`src/services/orderService.ts:133`).
-- Emit domain events or notifications when order status changes for customer updates (`src/services/orderService.ts:137`).
+## Security and identity
 
-## Customer Account & Engagement
-- Add profile update, password change, and account deletion mutations missing from the schema (`src/graphql/schema.ts:187`).
-- Track user preferences, communication consents, and saved payment methods for faster checkout (`sql_script.txt:24`).
-- Provide order history, invoices, and downloadable documents for customers via dedicated queries (`src/graphql/schema.ts:151`).
+- Complete authorization review across all resolvers, especially legacy review mutations and explicit status filters on the public CMS listing. Administrative guards already cover protected top-level fields and the SUPPORT namespace; that is not a complete security audit.
+- Expand session management with user-visible device/session listings and an explicit rotation/refresh-token policy. Keep any new tokens tied to server-side revocation in [sessionService.ts](../src/services/sessionService.ts).
+- Add password reset, email verification, account recovery, login attempt throttling, and authentication audit events.
+- Extend roles beyond `CUSTOMER` / `SUPPORT` with scoped merchandising/marketing permissions. Reassess GraphiQL exposure for production.
 
-## Admin Tools & Compliance
-- Implement moderation/audit logs for catalog, price, and order changes to satisfy compliance needs (`src/services/productService.ts:90`).
-- Add role-scoped analytics endpoints (sales, inventory, customer metrics) for the admin dashboard (`src/server.ts:31`).
-- Ensure GDPR/CCPA workflows (data export, right-to-be-forgotten) are automated (`src/services/userService.ts:36`).
+## Catalog and product experience
 
-## Observability & Reliability
-- Add structured request logging, metrics, and tracing beyond the basic per-request log middleware (`src/server.ts:23`).
-- Implement centralized error handling and alerting for failed DB/Redis calls (`src/config/redis.ts:55`).
-- Provide health, readiness, and dependency status endpoints for deployment orchestration (`src/server.ts:62`).
+- Add inventory, SKU, and product attributes; image storage is already present in [sql_script.txt](../sql_script.txt) and [productService.ts](../src/services/productService.ts).
+- Add price/availability/tag facets and pagination metadata to product queries.
+- Support product drafts, publication flags, and scheduling so updates can be staged.
+- Add bulk import/export and version history for products/categories.
 
-## Performance & Infrastructure
-- Add caching/invalidations for catalog queries and product detail pages beyond
-  the existing cart / wishlist / user-context caches (`src/services/productService.ts:21`).
-- Implement background jobs for tasks such as cart expiration, email notifications, and report generation (`src/server.ts:31`).
-- Provide database migrations and seeding tooling to evolve the schema safely (`sql_script.txt:1`).
+## Cart and checkout
 
-## Quality & Testing
-- Introduce automated unit/integration tests for services and resolvers (currently absent from `package.json:7`).
-- Configure linting, type checking in CI/CD, and contract tests for the GraphQL schema (`package.json:6`).
-- Seed realistic fixtures and load tests to validate performance under peak traffic (`sql_script.txt:118`).
+- Preserve server-derived prices and transaction boundaries in [orderService.ts](../src/services/orderService.ts); add inventory/availability validation and quantity limits where needed.
+- Audit product-existence handling and error behavior across cart/wishlist operations, including concurrent changes. Negative cart deltas are supported and tested; a dedicated quantity-update mutation is not required merely to decrement.
+- Store shipping/billing address snapshots and shipping-method selections on orders. Profile addresses alone are insufficient.
+- Calculate taxes, delivery charges, discounts, and promotions on the server.
+- Add order-creation idempotency when a response is lost; reusing a known order during payment retry does not cover this failure case.
+
+## Payments and financials
+
+- Integrate real payment providers and authenticated webhook processing. [paymentService.ts](../src/services/paymentService.ts) currently records payment state without charging customers.
+- Store provider transaction references and billing details; define the lifecycle of multiple attempts. Matching PENDING retries already reuse the existing record.
+- Implement refunds, voids, and reconciliation. Manually setting a payment status does not execute a financial operation.
+
+## Order management and fulfillment
+
+- Extend existing support listing/filtering with shipments, tracking numbers, carriers, and status history.
+- Add returns, exchanges, and cancellations with inventory/payment adjustments.
+- Emit domain events or notifications for order-status changes.
+
+## Customer accounts and engagement
+
+- Add account deletion/recovery around existing profile/password operations in [userService.ts](../src/services/userService.ts).
+- Store preferences, communication consent, and saved payment methods where supported by a real provider.
+- Extend existing customer order history with invoices and downloadable documents.
+
+## Admin tools and data governance
+
+- Record catalog, pricing, user, and order changes in an audit log.
+- Provide role-scoped analytics endpoints where needed; current dashboard aggregation is not a full sales/inventory reporting service.
+- Implement data export and deletion workflows for privacy requests, with appropriate retention rules.
+
+## Observability and reliability
+
+- Replace basic per-request console output with structured request logging, metrics, and tracing in [server.ts](../src/server.ts).
+- Improve centralized error handling and alerts for Oracle/Redis failures. Readiness reports Redis outages; recovery currently requires restarting the backend.
+- Implement HTTP request draining during shutdown in addition to closing Oracle/Redis connections.
+
+## Performance and infrastructure
+
+- Evaluate backend catalog/detail caching beyond the existing cart/wishlist/context/CMS caches. Keep it distinct from public Next.js proxy caches and define invalidation across them.
+- Add background jobs for cart expiration, email notifications, reports, and any scheduled publication workflow.
+- Create versioned, nondestructive database migrations. The corrected reset script is for disposable schemas and has not migrated recovered `AREVY`.
+- Back up Oracle and plan migration to external data volumes without replacing recovered data. Current Compose intentionally reuses `oracle19`.
+
+## Quality and testing
+
+- Extend unit/integration coverage for services, resolvers, ownership, failed mutations, and concurrent checkout/payment behavior.
+- Fix ESLint 9 configuration and wire lint, TypeScript, build, and GraphQL contract checks into CI.
+- Retain the isolated SQL bootstrap suite; use temporary schemas and explicit test containers rather than resetting the application schema.
+- Add controlled load tests and representative fixtures in dedicated test environments. Fixtures must not become runtime mock responses or overwrite recovered data.

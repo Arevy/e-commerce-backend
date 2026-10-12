@@ -1,6 +1,8 @@
 import { logger } from '../utils/logger'
 
 type RedisClient = {
+  isReady: boolean
+  ping: () => Promise<string>
   connect: () => Promise<void>
   quit: () => Promise<void>
   get: (key: string) => Promise<string | null>
@@ -33,9 +35,13 @@ export const connectRedis = async () => {
 
     const url = process.env.REDIS_URL
     const redisClient = url
-      ? redisModule.createClient({ url })
+      ? redisModule.createClient({ url, disableOfflineQueue: true,
+          socket: { connectTimeout: 3000, reconnectStrategy: false } })
       : redisModule.createClient({
+          disableOfflineQueue: true,
           socket: {
+            connectTimeout: 3000,
+            reconnectStrategy: false,
             host: process.env.REDIS_HOST || '127.0.0.1',
             port: Number(process.env.REDIS_PORT || 6379),
           },
@@ -56,6 +62,13 @@ export const connectRedis = async () => {
     isRedisReady = false
     return null
   }
+}
+
+export const checkRedisHealth = async () => {
+  if (shouldDisableRedis()) return { ready: true, mode: 'memory' }
+  try {
+    return { ready: Boolean(client?.isReady && await client.ping() === 'PONG'), mode: 'redis' }
+  } catch { return { ready: false, mode: 'redis' } }
 }
 
 export const disconnectRedis = async () => {

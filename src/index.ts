@@ -1,3 +1,6 @@
 import { startServer } from './server'
 
-startServer()
+startServer().catch((error: Error) => {
+  console.error(`Backend startup failed: ${error.message}`)
+  process.exit(1)
+})

@@ -3,6 +3,7 @@ import { cacheDel, cacheGet, cacheSet } from '../config/redis'
 import { Cart, CartItem } from '../models/cart'
 import { logger } from '../utils/logger'
 import { invalidateUserContextCache } from './userContextCache'
+import { UserFacingError } from '../utils/graphqlErrorFormatter'
 
 const cartCacheKey = (userId: number) => `cart:${userId}`
 
@@ -71,15 +72,20 @@ export const CartService = {
     productId: number,
     quantity: number,
   ): Promise<Cart> => {
+    if (!Number.isSafeInteger(quantity) || quantity === 0 || !Number.isSafeInteger(productId) || productId <= 0) {
+      throw new UserFacingError('Invalid cart quantity or product.', {code: 'INVALID_CART_ITEM'})
+    }
     const conn = await getConnectionFromPool()
     try {
       await conn.execute(
         `MERGE INTO CART_ITEMS c USING DUAL
            ON (c.USER_ID = :userId AND c.PRODUCT_ID = :productId)
          WHEN MATCHED THEN
-           UPDATE SET c.QUANTITY = c.QUANTITY + :quantity
+           UPDATE SET c.QUANTITY = GREATEST(0, c.QUANTITY + :quantity)
+           DELETE WHERE c.QUANTITY = 0
          WHEN NOT MATCHED THEN
-           INSERT (USER_ID, PRODUCT_ID, QUANTITY) VALUES (:userId, :productId, :quantity)`,
+           INSERT (USER_ID, PRODUCT_ID, QUANTITY) VALUES (:userId, :productId, :quantity)
+           WHERE :quantity > 0`,
         { userId, productId, quantity },
         { autoCommit: true },
       )

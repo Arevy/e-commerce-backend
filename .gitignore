@@ -42,6 +42,7 @@ dist/
 coverage/
 
 # Environment / secrets
+.local/
 .env
 .env.*
 !.env.example

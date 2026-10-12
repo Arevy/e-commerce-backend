@@ -85,12 +85,15 @@ test('Oracle demo reset in an isolated, temporary schema', {timeout: 180_000}, a
 
     await t.test('seed loads all 11 tables with the expected counts', reset)
 
-    await t.test('repeated reset removes legacy order lines and their foreign keys', async () => {
+    await t.test('repeated reset removes legacy lines and catalog version metadata', async () => {
       await sql(`CREATE TABLE ORDER_PRODUCTS (
         ORDER_ID NUMBER REFERENCES ORDERS(ID), PRODUCT_ID NUMBER REFERENCES PRODUCTS(ID));
         INSERT INTO ORDER_PRODUCTS SELECT MIN(o.ID), MIN(p.ID) FROM ORDERS o CROSS JOIN PRODUCTS p;
         COMMIT;`)
+      await sql(`CREATE TABLE SHOPX_CATALOG_RUNS (CATALOG_ID VARCHAR2(120) PRIMARY KEY);
+        CREATE TABLE SHOPX_CATALOG_SOURCES (PRODUCT_ID NUMBER REFERENCES PRODUCTS(ID));`)
       await reset()
+      assert.equal(await scalar("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME IN ('SHOPX_CATALOG_RUNS','SHOPX_CATALOG_SOURCES');"), 0)
       assert.equal(await scalar("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME='ORDER_PRODUCTS';"), 0)
       assert.equal(await scalar("SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME='ORDER_PRODUCTS';"), 0)
     })

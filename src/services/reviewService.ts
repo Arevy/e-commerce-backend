@@ -45,10 +45,13 @@ const fetchReviewById = async (reviewId: number) => {
 }
 
 export const ReviewService = {
-  getAll: async (filters?: {
-    productId?: number
-    userId?: number
-  }): Promise<Review[]> => {
+  getAll: async (
+    filters?: {
+      productId?: number
+      userId?: number
+    },
+    currentModelOnly = false,
+  ): Promise<Review[]> => {
     const conn = await getConnectionFromPool()
     try {
       const where: string[] = []
@@ -57,6 +60,23 @@ export const ReviewService = {
       if (filters?.productId !== undefined) {
         where.push('PRODUCT_ID = :productId')
         params.productId = filters.productId
+        // A catalog replacement keeps historical reviews for account/admin
+        // records, but must not attribute feedback about the old model to the new one.
+        // This optional table is installed only by the explicit catalog refresh.
+        if (currentModelOnly)
+          try {
+            const source = await conn.execute(
+              'SELECT MODEL_CHANGED_AT FROM SHOPX_CATALOG_SOURCES WHERE PRODUCT_ID=:id',
+              { id: filters.productId },
+            )
+            const changedAt = source.rows?.[0]?.[0]
+            if (changedAt) {
+              where.push('CREATED_AT >= :modelChangedAt')
+              params.modelChangedAt = changedAt
+            }
+          } catch (error) {
+            if (!isMissingTableError(error)) throw error
+          }
       }
       if (filters?.userId !== undefined) {
         where.push('USER_ID = :userId')
@@ -91,30 +111,7 @@ export const ReviewService = {
   },
 
   getByProduct: async (productId: number): Promise<Review[]> => {
-    const conn = await getConnectionFromPool()
-    try {
-      const res = await conn.execute(
-        `SELECT ID,
-                PRODUCT_ID,
-                USER_ID,
-                RATING,
-                REVIEW_TEXT,
-                TO_CHAR(CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-           FROM REVIEWS
-          WHERE PRODUCT_ID = :productId
-          ORDER BY CREATED_AT DESC`,
-        { productId },
-      )
-      return (res.rows || []).map((row: any[]) => mapReviewRow(row))
-    } catch (err) {
-      if (isMissingTableError(err)) {
-        logger.warn('REVIEWS table not found when fetching reviews by product.')
-        return []
-      }
-      throw err
-    } finally {
-      await conn.close()
-    }
+    return ReviewService.getAll({ productId }, true)
   },
 
   add: async (

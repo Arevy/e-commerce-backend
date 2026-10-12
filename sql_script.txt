@@ -24,6 +24,8 @@ DECLARE
   END;
 BEGIN
   -- Drop children before parents to satisfy foreign-key dependencies
+  drop_table('SHOPX_CATALOG_SOURCES');
+  drop_table('SHOPX_CATALOG_RUNS');
   drop_table('SHOPX_DATASET_RUNS'); -- A full disposable reset also resets seed history
   drop_table('PAYMENTS');
   drop_table('ORDER_ITEMS');

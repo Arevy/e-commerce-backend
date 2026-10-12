@@ -157,7 +157,7 @@ npm run data:seed -- --apply --expect-schema YOUR_SCHEMA
 
 Replace `YOUR_SCHEMA` with the configured schema name. Output defaults to Git-excluded `.local/data/`; credentials and snapshots must stay private. Applying is explicit and separate from API startup. In the recovered workspace, the pack increased the catalog from 33 to 45 products and from 11 to 14 categories, while preserving the original data. The guide covers counts, cache refresh, standalone Docker commands, rollback and concurrent-installation tests.
 
-The implemented roles remain `CUSTOMER` and `SUPPORT`. The starter's general administrator and support operator share `SUPPORT` permissions; platform-owner/global-admin roles and a platform generator are future work. Independent deployments need separate schema, Redis/session boundaries and private configuration.
+The implemented commerce roles remain `CUSTOMER` and `SUPPORT`. The starter's general administrator and support operator share `SUPPORT` permissions. The separate local control-plane component now creates independent platforms with schema, Redis/session boundaries and private configuration; its global roles are not commerce roles. Generated owners currently receive scoped `SUPPORT` access, not a new fine-grained owner role.
 
 ### Destructive reset for disposable schemas
 
@@ -196,14 +196,14 @@ On October 11, 2026, **nine integration scenarios** passed (ten Node tests inclu
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm start` | Run `dist/index.js`; requires a previous build |
 | `npx tsc --noEmit` | TypeScript check without emitting a build |
-| `npm test` | 15 regression tests: sessions, authorization, startup, datasets, catalog/image validation and review visibility |
+| `npm test` | 20 regression tests: sessions, authorization, startup, datasets, catalog/image validation, review visibility and managed-platform isolation |
 | `SHOPX_SQL_TEST_CONTAINER=<test-container> npm run test:sql` | Nine real Oracle scenarios in a temporary schema, separate from application data |
 | `npm run data:seed` | Read-only plan for the versioned starter pack; add `-- --apply --expect-schema YOUR_SCHEMA` to install explicitly |
 | `SHOPX_DATA_TEST_CONTAINER=<test-container> npm run test:data` | Five real Oracle scenarios for additive installation, preservation, reruns, rollback and concurrency |
 | `npm run lint` | Currently fails: ESLint 9 expects `eslint.config.*`, while this repository has `.eslintrc.json` |
 | `npm run format` | Rewrites files with Prettier; not a read-only check |
 
-The 15 unit tests and seven additive-data/catalog Oracle scenarios passed on October 12, 2026. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the [workspace verification record](../docs/development-status.md) for browser/native evidence and remaining limits.
+The 20 unit tests passed on October 12, 2026; seven additive-data/catalog Oracle scenarios passed during the earlier catalog milestone. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the [workspace verification record](../docs/development-status.md) for browser/native evidence and remaining limits.
 
 ## Logging and shutdown
 
@@ -215,4 +215,20 @@ The 15 unit tests and seven additive-data/catalog Oracle scenarios passed on Oct
 - [GraphQL operations](docs/graphql-operations.md): examples, authorization boundaries, and manual verification guidance. Example IDs are not universal account/product identifiers.
 - [Backend backlog](docs/backend-backlog.md) and [workspace status](../docs/development-status.md): remaining work and verification limits.
 
-The Dockerfile uses Node 22 bookworm-slim. Compose selects `development`, waits for Oracle/Redis, then runs `yarn dev`; the `production` target compiles TypeScript and runs `node dist/index.js`. Private Compose configuration stays in `../.local/compose.env`, outside the image. Existing Oracle is attached through an external network and is not recreated by Compose. The latest verification built development images; production-image validation remains separate.
+The Dockerfile uses Node 22 bookworm-slim. Compose selects `development`, waits for Oracle/Redis, then runs `yarn dev`; the `production` target compiles TypeScript and runs `node dist/index.js`. Private Compose configuration stays in `../.local/compose.env`, outside the image. Existing Oracle is attached through an external network and is not recreated by Compose. Production images were also built and exercised by the October 12 local-factory integration checks described below.
+
+## Managed platform instances
+
+The optional platform-factory integration keeps the standalone backend contract intact. Without `PLATFORM_ID`, the existing Oracle/Redis and image behavior remains unchanged.
+
+A managed instance sets `PLATFORM_ID=sx_<12 hex characters>`, its own `DB_USER`, `DB_CONNECT_STRING`, Redis endpoint, JWT secret and explicit `CORS_ALLOWED_ORIGINS`. `DB_PASSWORD_FILE`, `JWT_SECRET_FILE` and `REDIS_URL_FILE` read private files instead of embedding their values in deployment manifests. Managed startup validates its persisted platform identity before serving traffic; managed sessions fail closed if Redis is unavailable. JWTs also carry the platform issuer/audience.
+
+- `GET /platform-config` exposes only the validated public configuration, or `configuration: null` for standalone instances. It never exposes credentials.
+- `GET /health/ready` includes the platform ID/config revision for managed instances.
+- `PUBLIC_ASSET_RELATIVE=true` returns same-origin `/api/products/:id/image` URLs. Both this path and the existing `/products/:id/image` endpoint serve product images.
+- `npm run platform:provision` is the private worker's installer, using `PLATFORM_SETUP_FILE`, `PLATFORM_ASSETS_DIR` and `DB_CONNECT_STRING`. It only accepts generated `SX_P_<12 hex>` schemas in the expected application PDB. Do not point the reset script at a managed or existing business schema.
+- `migrations/001-commerce.sql` is an empty-schema baseline; `SHOPX_PLATFORM_INSTALL` stores ownership, checksum and DDL checkpoints. Unknown existing tables or a changed baseline cause failure. It never drops data.
+- `data/general-store-real-v1.json` contains 45 reviewed real products and CMS content, with empty customer/order/account collections. The installer creates one new store owner with the existing scoped `SUPPORT` role and privately generated credentials.
+- Provisioning accepts `seedMode: "empty"` to skip catalog/CMS installation, or `"demo"` (the backward-compatible default) to install that content pack. Both create a fresh owner without copying existing users or transactions. `SHOPX_PLATFORM_CONTENT` records the selected mode before seeding; retry cannot switch a partial or established installation to another content mode. Intentionally empty catalogs are valid running platforms.
+
+The backend repository can still be built and deployed alone. The factory consumes its production image and installer; no control-plane source is imported. Production hosting additionally requires durable Oracle storage, backups/restore verification and HTTPS. The local factory's HTTP-cookie override must not be used on public deployments.

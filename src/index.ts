@@ -1,3 +1,4 @@
+import './config/secrets'
 import { startServer } from './server'
 
 startServer().catch((error: Error) => {

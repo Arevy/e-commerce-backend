@@ -5,14 +5,20 @@ import { cacheDel, cacheGet, cacheSet } from '../config/redis'
 import { logger } from '../utils/logger'
 import type { UserRole } from '../models/user'
 
-const configuredTtl = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)
-const SESSION_TTL_SECONDS = Number.isSafeInteger(configuredTtl) && configuredTtl > 0
-  ? Math.min(configuredTtl, 60 * 60 * 24 * 30)
-  : 60 * 60 * 24 * 7
-const IMPERSONATION_TTL_SECONDS = Number(process.env.IMPERSONATION_TTL_SECONDS || 60)
+const configuredTtl = Number(
+  process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7,
+)
+const SESSION_TTL_SECONDS =
+  Number.isSafeInteger(configuredTtl) && configuredTtl > 0
+    ? Math.min(configuredTtl, 60 * 60 * 24 * 30)
+    : 60 * 60 * 24 * 7
+const IMPERSONATION_TTL_SECONDS = Number(
+  process.env.IMPERSONATION_TTL_SECONDS || 60,
+)
 
 export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sid'
-export const SUPPORT_SESSION_COOKIE_NAME = process.env.SUPPORT_SESSION_COOKIE_NAME || 'support_sid'
+export const SUPPORT_SESSION_COOKIE_NAME =
+  process.env.SUPPORT_SESSION_COOKIE_NAME || 'support_sid'
 
 const parseBoolean = (value: string | undefined, fallback: boolean) => {
   if (!value) {
@@ -34,7 +40,8 @@ const FORCE_INSECURE_SESSION_COOKIES = parseBoolean(
   process.env.FORCE_INSECURE_SESSION_COOKIES,
   false,
 )
-const shouldUseSecureCookies = NODE_ENV === 'production' && !FORCE_INSECURE_SESSION_COOKIES
+const shouldUseSecureCookies =
+  NODE_ENV === 'production' && !FORCE_INSECURE_SESSION_COOKIES
 
 export interface SessionRecord {
   id: string
@@ -90,14 +97,23 @@ const buildSessionCookie = (sessionId: string, cookieName: string) => {
 }
 
 const buildExpiredCookie = (cookieName: string) => {
-  const parts = [`${cookieName}=`, 'Path=/', 'Max-Age=0', 'HttpOnly', 'SameSite=Lax']
+  const parts = [
+    `${cookieName}=`,
+    'Path=/',
+    'Max-Age=0',
+    'HttpOnly',
+    'SameSite=Lax',
+  ]
   if (shouldUseSecureCookies) {
     parts.push('Secure')
   }
   return parts.join('; ')
 }
 
-const touchUserSessionsBucket = async (userId: number, sessionIds: string[]) => {
+const touchUserSessionsBucket = async (
+  userId: number,
+  sessionIds: string[],
+) => {
   if (sessionIds.length) {
     await cacheSet(userSessionsKey(userId), sessionIds, SESSION_TTL_SECONDS)
   } else {
@@ -107,21 +123,49 @@ const touchUserSessionsBucket = async (userId: number, sessionIds: string[]) => 
 
 export const SessionService = {
   createAccessToken(session: SessionRecord): string {
-    if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET must be configured')
-    return jwt.sign({ sessionId: session.id, userId: session.userId }, process.env.JWT_SECRET, {
-      algorithm: 'HS256', expiresIn: SESSION_TTL_SECONDS,
-    })
+    if (!process.env.JWT_SECRET)
+      throw new Error('JWT_SECRET must be configured')
+    return jwt.sign(
+      { sessionId: session.id, userId: session.userId },
+      process.env.JWT_SECRET,
+      {
+        ...(process.env.PLATFORM_ID
+          ? {
+              issuer: `shopx:${process.env.PLATFORM_ID}`,
+              audience: process.env.PLATFORM_ID,
+            }
+          : {}),
+        algorithm: 'HS256',
+        expiresIn: SESSION_TTL_SECONDS,
+      },
+    )
   },
 
-  async getSessionFromAuthorization(authorization: string): Promise<SessionRecord | null> {
+  async getSessionFromAuthorization(
+    authorization: string,
+  ): Promise<SessionRecord | null> {
     const match = /^Bearer (\S+)$/i.exec(authorization)
     if (!match || !process.env.JWT_SECRET) return null
     let payload: jwt.JwtPayload
     try {
-      const verified = jwt.verify(match[1], process.env.JWT_SECRET, { algorithms: ['HS256'] })
-      if (typeof verified === 'string' || typeof verified.sessionId !== 'string') return null
+      const verified = jwt.verify(match[1], process.env.JWT_SECRET, {
+        algorithms: ['HS256'],
+        ...(process.env.PLATFORM_ID
+          ? {
+              issuer: `shopx:${process.env.PLATFORM_ID}`,
+              audience: process.env.PLATFORM_ID,
+            }
+          : {}),
+      })
+      if (
+        typeof verified === 'string' ||
+        typeof verified.sessionId !== 'string'
+      )
+        return null
       payload = verified
-    } catch { return null }
+    } catch {
+      return null
+    }
     const session = await SessionService.getSession(payload.sessionId)
     return session && session.userId === payload.userId ? session : null
   },
@@ -145,7 +189,8 @@ export const SessionService = {
 
     await cacheSet(sessionKey(session.id), session, SESSION_TTL_SECONDS)
 
-    const existing = (await cacheGet<string[]>(userSessionsKey(session.userId))) ?? []
+    const existing =
+      (await cacheGet<string[]>(userSessionsKey(session.userId))) ?? []
     if (!existing.includes(session.id)) {
       existing.push(session.id)
     }
@@ -179,7 +224,8 @@ export const SessionService = {
 
     await cacheDel(sessionKey(sessionId))
 
-    const existing = (await cacheGet<string[]>(userSessionsKey(session.userId))) ?? []
+    const existing =
+      (await cacheGet<string[]>(userSessionsKey(session.userId))) ?? []
     const filtered = existing.filter((id) => id !== sessionId)
     await touchUserSessionsBucket(session.userId, filtered)
 
@@ -192,19 +238,30 @@ export const SessionService = {
       return 0
     }
 
-    await Promise.all(existing.map((sessionId) => cacheDel(sessionKey(sessionId))))
+    await Promise.all(
+      existing.map((sessionId) => cacheDel(sessionKey(sessionId))),
+    )
     await cacheDel(userSessionsKey(userId))
     return existing.length
   },
 
-  attachSessionCookie(res: Response, session: SessionRecord, cookieName?: string) {
-    const targetCookie = cookieName || (session.role === 'SUPPORT' ? SUPPORT_SESSION_COOKIE_NAME : SESSION_COOKIE_NAME)
+  attachSessionCookie(
+    res: Response,
+    session: SessionRecord,
+    cookieName?: string,
+  ) {
+    const targetCookie =
+      cookieName ||
+      (session.role === 'SUPPORT'
+        ? SUPPORT_SESSION_COOKIE_NAME
+        : SESSION_COOKIE_NAME)
     setCookieHeader(res, buildSessionCookie(session.id, targetCookie))
   },
 
   clearSessionCookie(res: Response, role?: UserRole) {
     if (role) {
-      const targetCookie = role === 'SUPPORT' ? SUPPORT_SESSION_COOKIE_NAME : SESSION_COOKIE_NAME
+      const targetCookie =
+        role === 'SUPPORT' ? SUPPORT_SESSION_COOKIE_NAME : SESSION_COOKIE_NAME
       setCookieHeader(res, buildExpiredCookie(targetCookie))
       return
     }
@@ -227,11 +284,15 @@ export const SessionService = {
 
     return {
       token,
-      expiresAt: new Date(Date.now() + IMPERSONATION_TTL_SECONDS * 1000).toISOString(),
+      expiresAt: new Date(
+        Date.now() + IMPERSONATION_TTL_SECONDS * 1000,
+      ).toISOString(),
     }
   },
 
-  async redeemImpersonationTicket(token: string): Promise<ImpersonationRecord | null> {
+  async redeemImpersonationTicket(
+    token: string,
+  ): Promise<ImpersonationRecord | null> {
     const record = await cacheGet<ImpersonationRecord>(impersonationKey(token))
     if (!record) {
       return null
@@ -261,7 +322,8 @@ export const SessionService = {
 
     await cacheSet(sessionKey(sessionId), next, SESSION_TTL_SECONDS)
 
-    const currentSessions = (await cacheGet<string[]>(userSessionsKey(next.userId))) ?? []
+    const currentSessions =
+      (await cacheGet<string[]>(userSessionsKey(next.userId))) ?? []
     if (currentSessions.length) {
       await touchUserSessionsBucket(next.userId, currentSessions)
     }
@@ -270,7 +332,10 @@ export const SessionService = {
   },
 }
 
-export const parseSessionCookie = (cookieHeader?: string, preferSupport = false): string | null => {
+export const parseSessionCookie = (
+  cookieHeader?: string,
+  preferSupport = false,
+): string | null => {
   if (!cookieHeader) {
     return null
   }
@@ -297,7 +362,8 @@ export const parseSessionCookie = (cookieHeader?: string, preferSupport = false)
   return defaultSession ?? supportSession
 }
 
-export const ensureArray = <T>(input: T | T[]): T[] => (Array.isArray(input) ? input : [input])
+export const ensureArray = <T>(input: T | T[]): T[] =>
+  Array.isArray(input) ? input : [input]
 
 export const appendCookie = (res: Response, cookies: string | string[]) => {
   ensureArray(cookies).forEach((cookie) => setCookieHeader(res, cookie))

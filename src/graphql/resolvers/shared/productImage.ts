@@ -19,6 +19,7 @@ const inferProtocol = (req: Request): string => {
 }
 
 const getPublicBaseUrl = (req: Request): string => {
+  if (process.env.PUBLIC_ASSET_RELATIVE === 'true') return '.'
   const configured = process.env.PUBLIC_ASSET_BASE_URL?.trim()
   if (configured) {
     return sanitizeBaseUrl(configured)
@@ -53,8 +54,9 @@ export const resolveProductImage = (
     return null
   }
 
-  const productId = typeof source.id === 'string' ? source.id : String(source.id)
-  const url = `${baseUrl}/products/${encodeURIComponent(productId)}/image${buildVersionToken(
+  const productId =
+    typeof source.id === 'string' ? source.id : String(source.id)
+  const url = `${baseUrl === '.' ? '/api' : baseUrl}/products/${encodeURIComponent(productId)}/image${buildVersionToken(
     source.imageUpdatedAt,
   )}`
 

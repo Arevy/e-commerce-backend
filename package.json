@@ -17,7 +17,8 @@
     "test:sql": "node --test tests/sql-bootstrap.integration.cjs",
     "test:data": "node --test tests/data-seeding.integration.cjs",
     "data:seed": "node scripts/seed-data.cjs",
-    "data:catalog": "node scripts/refresh-catalog.cjs"
+    "data:catalog": "node scripts/refresh-catalog.cjs",
+    "platform:provision": "node scripts/provision-platform.cjs"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.14",

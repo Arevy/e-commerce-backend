@@ -16,7 +16,11 @@ import { wishlistResolver } from './graphql/resolvers/wishlistResolver'
 import { customerSupportResolver } from './graphql/resolvers/customerSupportResolver'
 import { cmsResolver } from './graphql/resolvers/cmsResolver'
 import { userContextResolver } from './graphql/resolvers/userContextResolver'
-import { connectToDatabase, closeDatabaseConnection, getConnectionFromPool } from './config/database'
+import {
+  connectToDatabase,
+  closeDatabaseConnection,
+  getConnectionFromPool,
+} from './config/database'
 import { connectRedis, disconnectRedis, checkRedisHealth } from './config/redis'
 import { SessionService, parseSessionCookie } from './services/sessionService'
 import { ProductService } from './services/productService'
@@ -24,6 +28,7 @@ import type { GraphQLContext } from './graphql/context'
 import { formatGraphQLError } from './utils/graphqlErrorFormatter'
 import { createGraphqlHandler } from './middleware/createGraphqlHandler'
 import { protectAdministrativeFields } from './graphql/authorization'
+import { getPlatformConfiguration } from './services/platformService'
 
 const DEFAULT_LOCAL_ORIGINS = [
   'http://localhost:3000',
@@ -38,6 +43,12 @@ const DEFAULT_LOCAL_ORIGINS = [
 
 const allowedOrigins = (() => {
   const raw = process.env.CORS_ALLOWED_ORIGINS?.trim()
+  if (
+    process.env.PLATFORM_ID &&
+    (!raw || raw.split(',').some((origin) => origin.trim() === '*'))
+  ) {
+    throw new Error('Managed platforms require explicit CORS origins')
+  }
   if (!raw) {
     return [...DEFAULT_LOCAL_ORIGINS]
   }
@@ -52,7 +63,7 @@ const allowedOrigins = (() => {
   }
 
   const unique = new Set(origins)
-  DEFAULT_LOCAL_ORIGINS.forEach((origin) => {
+  ;(process.env.PLATFORM_ID ? [] : DEFAULT_LOCAL_ORIGINS).forEach((origin) => {
     if (origin) {
       unique.add(origin)
     }
@@ -98,51 +109,88 @@ export const startServer = async () => {
   })
 
   await connectToDatabase()
+  // A misconfigured managed backend must not serve a different shop's data.
+  if (process.env.PLATFORM_ID) await getPlatformConfiguration()
   await connectRedis()
 
   app.get('/health/live', (_req, res) => res.json({ alive: true }))
+  app.get('/platform-config', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      res.json({ configuration: await getPlatformConfiguration() })
+    } catch {
+      res.status(503).json({ error: 'Platform configuration unavailable' })
+    }
+  })
   app.get('/health/ready', async (_req, res) => {
     let database = false
+    let platform: Awaited<ReturnType<typeof getPlatformConfiguration>> = null
     try {
       const connection = await getConnectionFromPool()
       try {
-        await connection.execute('SELECT COUNT(*) FROM PRODUCTS WHERE ROWNUM <= 1')
+        await connection.execute(
+          'SELECT COUNT(*) FROM PRODUCTS WHERE ROWNUM <= 1',
+        )
         database = true
-      } finally { await connection.close() }
-    } catch { /* Readiness describes dependency state without exposing connection details. */ }
+      } finally {
+        await connection.close()
+      }
+    } catch {
+      /* Readiness describes dependency state without exposing connection details. */
+    }
+    let configurationReady = true
+    try {
+      platform = await getPlatformConfiguration()
+    } catch {
+      configurationReady = false
+    }
     const redis = await checkRedisHealth()
-    const ready = database && redis.ready
+    const ready = database && redis.ready && configurationReady
     res.setHeader('Cache-Control', 'no-store')
-    res.status(ready ? 200 : 503).json({ ready, database, redis })
+    res.status(ready ? 200 : 503).json({
+      ready,
+      database,
+      redis,
+      ...(process.env.PLATFORM_ID
+        ? {
+            platformId: platform?.platformId,
+            configRevision: platform?.revision,
+            configurationReady,
+          }
+        : {}),
+    })
   })
 
-  app.get('/products/:id/image', async (req, res) => {
-    const productId = Number(req.params.id)
-    if (!Number.isFinite(productId) || productId <= 0) {
-      res.status(400).send('Invalid product id')
-      return
-    }
-
-    try {
-      const image = await ProductService.getImageContent(productId)
-      if (!image) {
-        res.status(404).send('Image not found')
+  app.get(
+    ['/products/:id/image', '/api/products/:id/image'],
+    async (req, res) => {
+      const productId = Number(req.params.id)
+      if (!Number.isFinite(productId) || productId <= 0) {
+        res.status(400).send('Invalid product id')
         return
       }
 
-      res.setHeader('Content-Type', image.mimeType)
-      res.setHeader(
-        'Content-Disposition',
-        `inline; filename="${encodeURIComponent(image.filename)}"`,
-      )
-      res.setHeader('Cache-Control', 'public, max-age=900, must-revalidate')
-      res.setHeader('Content-Length', String(image.data.length))
-      res.send(image.data)
-    } catch (error) {
-      logger.error(`Error serving product image ${productId}: ${error}`)
-      res.sendStatus(500)
-    }
-  })
+      try {
+        const image = await ProductService.getImageContent(productId)
+        if (!image) {
+          res.status(404).send('Image not found')
+          return
+        }
+
+        res.setHeader('Content-Type', image.mimeType)
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${encodeURIComponent(image.filename)}"`,
+        )
+        res.setHeader('Cache-Control', 'public, max-age=900, must-revalidate')
+        res.setHeader('Content-Length', String(image.data.length))
+        res.send(image.data)
+      } catch (error) {
+        logger.error(`Error serving product image ${productId}: ${error}`)
+        res.sendStatus(500)
+      }
+    },
+  )
 
   const executableSchema = makeExecutableSchema({
     typeDefs,
@@ -185,8 +233,12 @@ export const startServer = async () => {
 
     const sessionId = parseSessionCookie(req.headers.cookie, preferSupport)
     const session = req.headers.authorization
-      ? await SessionService.getSessionFromAuthorization(req.headers.authorization)
-      : sessionId ? await SessionService.getSession(sessionId) : null
+      ? await SessionService.getSessionFromAuthorization(
+          req.headers.authorization,
+        )
+      : sessionId
+        ? await SessionService.getSession(sessionId)
+        : null
     return { req, res, session }
   }
 

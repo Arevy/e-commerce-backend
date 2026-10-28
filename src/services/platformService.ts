@@ -1,4 +1,5 @@
 import { getConnectionFromPool } from '../config/database'
+import { Experience, validateExperience } from './platformCustomization'
 
 export interface PlatformConfiguration {
   platformId: string
@@ -8,6 +9,7 @@ export interface PlatformConfiguration {
   currency: 'EUR'
   priceDisplay: 'gross'
   branding: { accent: string; background: string; surface: string }
+  experience?: Experience
 }
 
 export function validatePlatformConfiguration(
@@ -43,6 +45,9 @@ export function validatePlatformConfiguration(
       background: c.branding.background,
       surface: c.branding.surface,
     },
+    ...(c.experience === undefined
+      ? {}
+      : { experience: validateExperience(c.experience) }),
   }
 }
 

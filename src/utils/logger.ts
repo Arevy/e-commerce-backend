@@ -1,24 +1,34 @@
 import winston from 'winston'
-import { red, yellow, blue, magenta, green } from 'colorette'
-
-const levelColor: Record<'error' | 'warn' | 'info' | 'http' | 'debug', string> =
-  {
-    error: red('ERROR'),
-    warn: yellow('WARN'),
-    info: blue('INFO'),
-    http: magenta('HTTP'),
-    debug: green('DEBUG'),
-  }
+import { safeLogMessage } from './logPrivacy'
 
 export const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.printf(({ level, message, timestamp }) => {
-      const coloredLevel =
-        levelColor[level as keyof typeof levelColor] || level.toUpperCase()
-      return `[${timestamp}] ${coloredLevel}: ${message}`
-    }),
+    winston.format.printf((info) =>
+      JSON.stringify({
+        timestamp: info.timestamp,
+        level: info.level,
+        event:
+          typeof info.event === 'string'
+            ? safeLogMessage(info.event)
+            : 'application',
+        message: safeLogMessage(info.message),
+        ...Object.fromEntries(
+          ['method', 'path', 'status', 'duration_ms', 'request_id']
+            .filter(
+              (key) =>
+                typeof info[key] === 'string' || typeof info[key] === 'number',
+            )
+            .map((key) => [
+              key,
+              typeof info[key] === 'string'
+                ? safeLogMessage(info[key])
+                : info[key],
+            ]),
+        ),
+      }),
+    ),
   ),
   transports: [new winston.transports.Console()],
 })

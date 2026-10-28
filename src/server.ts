@@ -1,4 +1,5 @@
 import express from 'express'
+import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import type { GraphQLError } from 'graphql'
@@ -104,7 +105,20 @@ export const startServer = async () => {
   })
 
   app.use((req, res, next) => {
-    logger.info(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
+    const started = Date.now()
+    const requestId = randomUUID()
+    res.setHeader('X-Request-ID', requestId)
+    res.once('finish', () => {
+      logger.info('HTTP request completed', {
+        event: 'http_request',
+        method: req.method,
+        path:
+          typeof req.route?.path === 'string' ? req.route.path : '/unmatched',
+        status: res.statusCode,
+        duration_ms: Date.now() - started,
+        request_id: requestId,
+      })
+    })
     next()
   })
 

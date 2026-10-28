@@ -144,3 +144,28 @@ test('factory content pack contains reviewed products and no copied accounts or 
     assert.equal(pack[key].length, 0)
   for (const p of pack.products) assert.match(p.image.sha256, /^[a-f0-9]{64}$/)
 })
+
+test('public experience validates content and applies defaults without exposing arbitrary fields', () => {
+  const result = validatePlatformConfiguration({
+    ...config,
+    experience: {
+      heroTitle: 'Welcome',
+      showFeatured: false,
+      fontFamily: 'serif',
+    },
+  })
+  assert.equal(result.experience.heroTitle, 'Welcome')
+  assert.equal(result.experience.showFeatured, false)
+  assert.equal(result.experience.showNewArrivals, true)
+  for (const experience of [
+    { logoUrl: 'javascript:alert(1)' },
+    { logoUrl: 'https://user:pass@example.test/logo.png' },
+    { heroTitle: '<script>' },
+    { showFeatured: 'false' },
+    { fontFamily: 'external-font' },
+    { token: 'private' },
+  ])
+    assert.throws(() =>
+      validatePlatformConfiguration({ ...config, experience }),
+    )
+})

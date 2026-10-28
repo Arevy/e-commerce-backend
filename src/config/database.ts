@@ -2,6 +2,7 @@
 import oracledb from 'oracledb'
 import dotenv from 'dotenv'
 import { logger } from '../utils/logger'
+import { assertPlatformDatabaseIdentity } from './platformDatabaseIdentity'
 
 dotenv.config()
 // Ensure LOB columns (CLOB/NCLOB) are returned as plain strings.
@@ -31,12 +32,17 @@ const isPasswordExpiredError = (error: unknown): boolean => {
   if (oracleError.errorNum === 28001) {
     return true
   }
-  return typeof oracleError.message === 'string' && oracleError.message.includes('ORA-28001')
+  return (
+    typeof oracleError.message === 'string' &&
+    oracleError.message.includes('ORA-28001')
+  )
 }
 
 const createPool = async (password: string) => {
   if (!process.env.DB_USER || !process.env.DB_CONNECT_STRING) {
-    throw new Error('Missing Oracle database configuration. Check DB_USER and DB_CONNECT_STRING.')
+    throw new Error(
+      'Missing Oracle database configuration. Check DB_USER and DB_CONNECT_STRING.',
+    )
   }
 
   return oracledb.createPool({
@@ -49,9 +55,14 @@ const createPool = async (password: string) => {
   })
 }
 
-const rotateExpiredPassword = async (currentPassword: string, newPassword: string) => {
+const rotateExpiredPassword = async (
+  currentPassword: string,
+  newPassword: string,
+) => {
   if (!process.env.DB_USER || !process.env.DB_CONNECT_STRING) {
-    throw new Error('Missing Oracle database configuration. Check DB_USER and DB_CONNECT_STRING.')
+    throw new Error(
+      'Missing Oracle database configuration. Check DB_USER and DB_CONNECT_STRING.',
+    )
   }
 
   if (currentPassword === newPassword) {
@@ -60,7 +71,9 @@ const rotateExpiredPassword = async (currentPassword: string, newPassword: strin
     )
   }
 
-  logger.warn('Oracle password expired. Attempting automatic rotation with DB_PASSWORD_NEW.')
+  logger.warn(
+    'Oracle password expired. Attempting automatic rotation with DB_PASSWORD_NEW.',
+  )
   let connection: oracledb.Connection | null = null
   try {
     connection = await oracledb.getConnection({
@@ -69,7 +82,9 @@ const rotateExpiredPassword = async (currentPassword: string, newPassword: strin
       passwordNew: newPassword,
       connectString: process.env.DB_CONNECT_STRING,
     })
-    logger.info('Oracle password rotated successfully. Update your secrets to persist the change.')
+    logger.info(
+      'Oracle password rotated successfully. Update your secrets to persist the change.',
+    )
   } catch (err) {
     logger.error(`Oracle password rotation failed: ${err}`)
     throw err
@@ -87,7 +102,9 @@ export const connectToDatabase = async () => {
 
   const currentPassword = process.env.DB_PASSWORD
   if (!currentPassword) {
-    throw new Error('Missing Oracle database configuration. Check DB_PASSWORD environment variable.')
+    throw new Error(
+      'Missing Oracle database configuration. Check DB_PASSWORD environment variable.',
+    )
   }
 
   try {
@@ -118,9 +135,33 @@ export const connectToDatabase = async () => {
     connectionPool = await createPool(nextPassword)
   }
 
-  const conn = await connectionPool.getConnection()
-  await conn.execute(`SELECT 1 FROM DUAL`)
-  await conn.close()
+  try {
+    const conn = await connectionPool.getConnection()
+    try {
+      const result = await conn.execute(
+        "SELECT SYS_CONTEXT('USERENV','SESSION_USER'), SYS_CONTEXT('USERENV','CURRENT_SCHEMA'), SYS_CONTEXT('USERENV','ISDBA'), (SELECT COUNT(*) FROM SESSION_ROLES WHERE ROLE='DBA') FROM DUAL",
+      )
+      const [user, schema, isDba, dbaRoles] = result.rows![0] as [
+        string,
+        string,
+        string,
+        number,
+      ]
+      assertPlatformDatabaseIdentity(
+        process.env.PLATFORM_ID,
+        user,
+        schema,
+        isDba,
+        dbaRoles,
+      )
+    } finally {
+      await conn.close()
+    }
+  } catch (error) {
+    await connectionPool.close(0)
+    connectionPool = null
+    throw error
+  }
   logger.info('Connected to Oracle Database')
   return connectionPool
 }
@@ -130,7 +171,9 @@ export const getConnectionFromPool = async (): Promise<oracledb.Connection> => {
     await connectToDatabase()
   }
   if (!connectionPool) {
-    throw new Error('Connection pool not initialized. Call connectToDatabase first.')
+    throw new Error(
+      'Connection pool not initialized. Call connectToDatabase first.',
+    )
   }
   return connectionPool.getConnection()
 }

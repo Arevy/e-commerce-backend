@@ -1,6 +1,6 @@
 # Backend backlog
 
-Reviewed against the current source on October 11, 2026. This separates implemented foundations from remaining work; it does not claim production readiness. See the [backend README](../README.md) for setup and the [workspace verification record](../../docs/development-status.md) for the environments actually tested.
+Reviewed against the current source on October 27, 2026. This separates implemented foundations from remaining work; it does not claim production readiness. See the [backend README](../README.md) for setup and the workspace verification record (`../../docs/development-status.md`, integration workspace only) for the environments actually tested.
 
 ## Implemented foundations
 
@@ -11,18 +11,18 @@ Reviewed against the current source on October 11, 2026. This separates implemen
 | Trusted order prices | Customer orders use Oracle prices and validate positive integral quantities; ordered cart lines are consumed transactionally | Stock checks, price-change UX, taxes, shipping, discounts, and order-creation idempotency |
 | Customer account | Profile update, password change, addresses, and order-history query exist | Account recovery/deletion workflows, invoices, preferences, and broader flow coverage |
 | Support order queries | `customerSupport.orders`, `ordersConnection`, and `order` provide listing/filtering/pagination | Fulfillment model, richer status history, returns, and notifications |
-| Dependency health | `/health/live` and `/health/ready`, including Oracle/Redis readiness | HTTP request draining, structured observability, and recovery behavior |
+| Dependency health | `/health/live` and `/health/ready`, Oracle/Redis readiness, structured operational logs and optional control-plane monitoring | HTTP request draining, distributed tracing and broader recovery behavior |
 | Automated tests | Session/authorization regression tests and a separate Oracle SQL integration runner exist | Broader service/resolver, security, concurrency, and CI coverage |
 | SQL reset and local orchestration | Reset script has fail-fast behavior, legacy-table cleanup, constraints, and nine isolated test scenarios; Compose connects existing Oracle | Nondestructive migrations, backups/external volumes, and production-image verification |
-| Versioned starter data | Standalone additive installer, a general-store pack, private credentials/snapshots, and Oracle preservation/rollback/concurrency tests | More verticals, product imagery, independent provisioning and recovery tooling |
+| Versioned starter data | Additive installer, real-product catalog/photos, content-only factory demos and Oracle preservation/rollback tests | More verticals, scheduled data updates and broader recovery tooling |
 
 ## Independent platform generation
 
-- Define a versioned platform manifest for branding, domains, locales/currency, capabilities, selected data pack and references to external secrets. The current data pack is a reusable input, not a running-platform generator.
-- Generate independent deployment/configuration artifacts with a preview mode and explicit schema migrations. Root Compose remains a local integration environment, not a dependency of independently cloned repositories.
-- Add a backend-owned store-configuration contract. Align currency before expanding customization: the storefront currently displays RON, RN displays EUR and admin product prices use a dollar sign, while product prices contain no currency field.
-- Introduce scoped platform roles and a separate global control plane with authorization/isolation tests. The starter's general administrator and support operator both use the existing `SUPPORT` role.
-- Isolate Oracle schemas, Redis/session data, credentials and domain/cookie boundaries per platform. Current backend Redis keys have no platform prefix; distinct Next.js cache prefixes alone do not isolate instances.
+- The independent [control plane](https://github.com/Arevy/shopx-control-plane) now owns the versioned manifest, creation preview, dedicated Compose stacks, invitation-only roles and revision-guarded configuration publication. The backend exposes the public configuration contract; it does not provision other businesses itself.
+- Managed platforms use separate Oracle schemas, Redis instances/volumes, credentials and gateway hostnames. Startup checks reject mismatched managed schema identities and privileged database sessions. The original standalone schema remains separate and is not automatically adopted or migrated.
+- Storefront, admin and RN display EUR with VAT-inclusive catalog reference prices. Existing transaction amounts were not converted or assigned a proven historical currency by changing their display symbol.
+- Remaining work includes customer-domain/TLS automation, a general release-upgrade UI, tested backup/restore, nondestructive schema evolution, legacy-store adoption and native/desktop distribution. Root Compose is optional integration tooling, not a source dependency of this repository.
+- Commerce roles remain `CUSTOMER` and `SUPPORT`; management roles in the control registry do not add granular store-staff permissions.
 
 ## Security and identity
 
@@ -72,7 +72,7 @@ Reviewed against the current source on October 11, 2026. This separates implemen
 
 ## Observability and reliability
 
-- Replace basic per-request console output with structured request logging, metrics, and tracing in [server.ts](../src/server.ts).
+- Structured request logging is implemented in [server.ts](../src/server.ts); the optional control-plane stack adds sanitized logs, resource/readiness metrics and local alert rules. Remaining work includes distributed tracing, external alert delivery and controlled client telemetry.
 - Improve centralized error handling and alerts for Oracle/Redis failures. Readiness reports Redis outages; recovery currently requires restarting the backend.
 - Implement HTTP request draining during shutdown in addition to closing Oracle/Redis connections.
 

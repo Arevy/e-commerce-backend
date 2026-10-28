@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS dependencies
+FROM node:22.23.4-bookworm-slim AS dependencies
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ FROM dependencies AS build
 COPY . .
 RUN yarn build
 
-FROM node:22-bookworm-slim AS production
+FROM node:22.23.4-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 ENV npm_config_oracle_skip_postinstall=1

@@ -1,8 +1,12 @@
 # ShopX GraphQL backend
 
-The shared API for the storefront, admin portal, and React Native app. Oracle stores persistent data; Redis stores sessions and cached responses. This is an independent repository, separate from the other three repositories in the parent `shopx` directory.
+The shared API for the storefront, admin portal, and React Native app. Oracle stores persistent data; Redis stores sessions and cached responses. This is an independent repository; the control plane and three client applications are separate repositories.
 
 ## Run this repository independently
+
+Run the commands in this section from this repository root. Integration-workspace commands and private account files later in this README are optional local context, not files shipped with this repository.
+
+Operational logging uses structured JSON on stdout. Request events record a generated request ID, method, route template, status and duration; they do not include bodies, cookies, authorization headers or URL query strings. The logger allowlists metadata and redacts known sensitive patterns. Use fixed operational messages for new events, never interpolate customer payloads. The backend does not require a monitoring SDK or contact Loki. An optional operator-managed ShopX collector can sanitize and forward container output; setup lives in the [control-plane observability guide](https://github.com/Arevy/shopx-control-plane/blob/master/docs/observability.md). Oracle SQL/audit logging is not exported by this integration.
 
 This repository owns its source, lockfile, Dockerfile, tests, and [standalone Compose configuration](compose.yaml). It does not require the parent ShopX directory or sibling checkouts. Other services are accessed through configurable network endpoints and must implement the expected GraphQL/API contract; a different API schema requires a client adapter.
 
@@ -29,7 +33,7 @@ In the full local workspace, use the parent `docker-compose.yml` / `node scripts
 
 ## Stack and requirements
 
-- Node **22.x** (`package.json`: `>=22 <23`; `.nvmrc`: `22.11.0`), TypeScript, and Express. Use `nvm use` if you manage Node with nvm.
+- Node **22.23.4** (`package.json`: `>=22.23.4 <23`; `.nvmrc`: `22.23.4`), TypeScript, and Express. Use `nvm use` if you manage Node with nvm.
 - GraphQL through `@graphql-tools/schema` and `express-graphql`.
 - Oracle 19c locally, using the `oracledb` Thin driver. The current configuration does not require Oracle Instant Client.
 - Redis for shared sessions and caching. An explicit in-memory mode exists but loses sessions on restart and does not share them across processes.
@@ -47,9 +51,9 @@ Compose builds the backend image, starts Redis, and waits for backend readiness 
 
 The recovered database remains **`oracle19 → ORCLCDB → AREVY`**, in `CDB$ROOT`. The launcher reads `../.local/database.json`, starts the existing container, and attaches it to Docker networking with alias `oracle`. The backend uses `oracle:1521/ORCLCDB`; no new database, reset, or seed is created.
 
-Compose Redis is `redis:6379/1`, backed by a persistent volume. The previous `clever_wilson` instance is retained for the legacy host-process workflow. Sign in again after switching: sessions are not migrated between Redis instances.
+Compose Redis is `redis:6379/1`, backed by a persistent volume. The former `clever_wilson` container was retired and is not required. Host-process development must configure its own reachable Redis endpoint. Sign in again after switching: sessions are not migrated between Redis instances.
 
-From the parent directory, `node scripts/compose.mjs logs backend` shows logs and `node scripts/compose.mjs check` verifies application connectivity without mutations. The [workspace README](../README.md) covers startup/shutdown, internal DNS, private identity configuration, and host-process alternatives. Parent scripts are not included in a standalone clone of this repository.
+From the parent directory, `node scripts/compose.mjs logs backend` shows logs and `node scripts/compose.mjs check` verifies application connectivity without mutations. The workspace README (`../README.md`, integration workspace only) covers startup/shutdown, internal DNS, private identity configuration, and host-process alternatives. Parent scripts are not included in a standalone clone of this repository.
 
 Accounts come from Oracle; startup does not create a default account. The explicitly installed `general-store-v1` pack provides four new local accounts in `AREVY`, with generated credentials documented only in the workspace's private `docs/local-accounts.private.md`. `../.local/admin-access.json` now selects that pack's general administrator for workspace tests; its former `SHOPX_LOCAL` contents were backed up privately. Existing recovered accounts and passwords were preserved.
 
@@ -68,20 +72,20 @@ REDIS_URL=redis://127.0.0.1:<redis-port>/1
 
 With dependencies installed, Oracle/Redis configured, and an existing schema accessible, run `npm run dev`. Do not start a second server on a port already owned by Compose or the host launcher. An external Oracle instance can be used in standalone mode by setting `DB_CONNECT_STRING` to its reachable host, port, and service; normal startup does not initialize its schema.
 
-| Variable | Behavior |
-| --- | --- |
-| `DB_USER`, `DB_PASSWORD`, `DB_CONNECT_STRING` | Oracle connection; never commit credentials |
-| `DB_POOL_MIN`, `DB_POOL_MAX`, `DB_POOL_INCREMENT` | Defaults: `1`, `4`, `1` |
-| `DB_PASSWORD_ROTATE`, `DB_PASSWORD_NEW` | Optional rotation on `ORA-28001`; disabled by default. The replacement must differ from the current password |
-| `JWT_SECRET` | Required to issue and verify Bearer tokens |
-| `SESSION_COOKIE_NAME`, `SUPPORT_SESSION_COOKIE_NAME` | Defaults: `sid`, `support_sid` |
-| `SESSION_TTL_SECONDS`, `IMPERSONATION_TTL_SECONDS` | Defaults: 604800 and 60 seconds |
-| `REDIS_URL` | Redis URL including port and logical database; alternatively use `REDIS_HOST` / `REDIS_PORT` |
-| `REDIS_DISABLED=true` | Explicit in-memory mode, reported by readiness |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated origins; code also adds local origins in `src/server.ts` |
-| `FORCE_INSECURE_SESSION_COOKIES=true` | Exception for a local production build served over HTTP, not an HTTPS deployment |
-| `PUBLIC_ASSET_BASE_URL` | Public product-image origin; otherwise derived from the request |
-| `JSON_BODY_LIMIT` | JSON request limit, default `5mb`; relevant to base64 image uploads |
+| Variable                                             | Behavior                                                                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DB_USER`, `DB_PASSWORD`, `DB_CONNECT_STRING`        | Oracle connection; never commit credentials                                                                  |
+| `DB_POOL_MIN`, `DB_POOL_MAX`, `DB_POOL_INCREMENT`    | Defaults: `1`, `4`, `1`                                                                                      |
+| `DB_PASSWORD_ROTATE`, `DB_PASSWORD_NEW`              | Optional rotation on `ORA-28001`; disabled by default. The replacement must differ from the current password |
+| `JWT_SECRET`                                         | Required to issue and verify Bearer tokens                                                                   |
+| `SESSION_COOKIE_NAME`, `SUPPORT_SESSION_COOKIE_NAME` | Defaults: `sid`, `support_sid`                                                                               |
+| `SESSION_TTL_SECONDS`, `IMPERSONATION_TTL_SECONDS`   | Defaults: 604800 and 60 seconds                                                                              |
+| `REDIS_URL`                                          | Redis URL including port and logical database; alternatively use `REDIS_HOST` / `REDIS_PORT`                 |
+| `REDIS_DISABLED=true`                                | Explicit in-memory mode, reported by readiness                                                               |
+| `CORS_ALLOWED_ORIGINS`                               | Comma-separated origins; code also adds local origins in `src/server.ts`                                     |
+| `FORCE_INSECURE_SESSION_COOKIES=true`                | Exception for a local production build served over HTTP, not an HTTPS deployment                             |
+| `PUBLIC_ASSET_BASE_URL`                              | Public product-image origin; otherwise derived from the request                                              |
+| `JSON_BODY_LIMIT`                                    | JSON request limit, default `5mb`; relevant to base64 image uploads                                          |
 
 ### Expired Oracle passwords
 
@@ -89,13 +93,13 @@ For `ORA-28001`, restore access to the existing schema rather than resetting it.
 
 ## API and implemented contracts
 
-| Route | Purpose |
-| --- | --- |
-| `POST /graphql` | GraphQL queries and mutations |
-| `GET /graphql` | GraphiQL is enabled in the current code, including when `NODE_ENV=production` |
-| `GET /health/live` | Confirms the HTTP server responds |
-| `GET /health/ready` | Checks access to `PRODUCTS` and Redis; returns 503 when a required dependency is unavailable |
-| `GET /products/:id/image` | Public image from an Oracle BLOB; 404 if the product has no image |
+| Route                     | Purpose                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| `POST /graphql`           | GraphQL queries and mutations                                                                |
+| `GET /graphql`            | GraphiQL is enabled in the current code, including when `NODE_ENV=production`                |
+| `GET /health/live`        | Confirms the HTTP server responds                                                            |
+| `GET /health/ready`       | Checks access to `PRODUCTS` and Redis; returns 503 when a required dependency is unavailable |
+| `GET /products/:id/image` | Public image from an Oracle BLOB; 404 if the product has no image                            |
 
 - Catalog, categories, CMS, login/registration, profile/password updates, addresses, cart, wishlist, reviews, orders, and payment records.
 - `getUserContext` groups user, cart, wishlist, and addresses. `getWishlist` returns `{userId, products}`.
@@ -127,16 +131,16 @@ The catalog refresh adds verified model descriptions, EUR VAT-inclusive referenc
 
 Backend keys are separate from the public GraphQL proxy caches in Next.js:
 
-| Key | Default lifetime |
-| --- | --- |
-| `cart:<userId>` | 60 seconds |
-| `wishlist:<userId>` | 120 seconds |
-| `user-context:<userId>` | 120 seconds |
-| CMS list/page keys | 60 seconds; missing-page cache writes use 30 seconds |
-| `session:<sessionId>`, `session-user:<userId>` | `SESSION_TTL_SECONDS`, default seven days |
-| `impersonate:<ticket>` | `IMPERSONATION_TTL_SECONDS`, default 60 seconds |
+| Key                                            | Default lifetime                                     |
+| ---------------------------------------------- | ---------------------------------------------------- |
+| `cart:<userId>`                                | 60 seconds                                           |
+| `wishlist:<userId>`                            | 120 seconds                                          |
+| `user-context:<userId>`                        | 120 seconds                                          |
+| CMS list/page keys                             | 60 seconds; missing-page cache writes use 30 seconds |
+| `session:<sessionId>`, `session-user:<userId>` | `SESSION_TTL_SECONDS`, default seven days            |
+| `impersonate:<ticket>`                         | `IMPERSONATION_TTL_SECONDS`, default 60 seconds      |
 
-Cart/wishlist/address/profile changes invalidate the relevant context caches; CMS writes invalidate their backend entries. Session revocation/logout removes session records. This does not automatically invalidate a public response already cached by a Next.js proxy. See [storefront cache tools](../shopx-frontend/README.md#cache-tools) and [admin cache tools](../admin-portal/README.md#cache-tools).
+Cart/wishlist/address/profile changes invalidate the relevant context caches; CMS writes invalidate their backend entries. Session revocation/logout removes session records. This does not automatically invalidate a public response already cached by a Next.js proxy. See [storefront cache tools](https://github.com/Arevy/shopx-frontend/blob/master/README.md#cache-tools) and [admin cache tools](https://github.com/Arevy/ShopX-Admin-Portal/blob/master/README.md#cache-tools).
 
 When Redis fails, in-memory fallback does not mean healthy readiness in Redis mode. Restart the backend after Redis recovers. `REDIS_DISABLED=true` explicitly selects a different mode and is not a substitute for shared sessions.
 
@@ -161,13 +165,13 @@ The implemented commerce roles remain `CUSTOMER` and `SUPPORT`. The starter's ge
 
 ### Destructive reset for disposable schemas
 
-[sql_script.txt](sql_script.txt) is a **destructive reset with demo seed data**, not a migration or backup. It executes `DROP ... CASCADE CONSTRAINTS PURGE`. Do not run it to restart an existing database or fix an empty catalog. For an intentionally disposable schema, SQL*Plus/SQLcl can execute it with `@sql_script.txt`; the isolated test below is the reproducible verification path.
+[sql_script.txt](sql_script.txt) is a **destructive reset with demo seed data**, not a migration or backup. It executes `DROP ... CASCADE CONSTRAINTS PURGE`. Do not run it to restart an existing database or fix an empty catalog. For an intentionally disposable schema, SQL\*Plus/SQLcl can execute it with `@sql_script.txt`; the isolated test below is the reproducible verification path.
 
 Isolated Oracle 19c verification on October 11, 2026 confirmed two successful runs with 11 categories, 33 products, 16 users, 17 addresses, 23 orders, 41 order items, 23 payments, 15 cart items, 15 wishlist entries, eight CMS pages, and ten reviews. Order/payment totals are consistent. These are seed counts, not the recovered database's inventory, which contains later changes.
 
 Verified SQL corrections:
 
-- `WHENEVER SQLERROR` and `WHENEVER OSERROR` make SQL*Plus exit unsuccessfully. Injected DDL/seed errors return nonzero exit codes; uncommitted DML is rolled back. **Oracle DDL commits implicitly**, so rollback cannot recover dropped tables.
+- `WHENEVER SQLERROR` and `WHENEVER OSERROR` make SQL\*Plus exit unsuccessfully. Injected DDL/seed errors return nonzero exit codes; uncommitted DML is rolled back. **Oracle DDL commits implicitly**, so rollback cannot recover dropped tables.
 - Resets remove legacy `ORDER_PRODUCTS` before parent tables, preventing leftover rows without foreign keys.
 - `CHECK` constraints reject negative prices/totals/amounts, fractional quantities, and ratings outside integer values 1–5. Order-item quantities must be positive.
 - Cart quantities are integral and **nonnegative**. Zero is allowed for `CartService.addToCart`, whose `MERGE` sets zero and removes the row in the same statement. Tests execute SQL extracted from that service, including decrements below zero, commit, and confirmation that the row was removed.
@@ -176,44 +180,44 @@ These constraints apply to schemas created using the current DDL. Setup in `exis
 
 ### Reproducible SQL test
 
-From this repository, with a dedicated Oracle 19c test container running, `ORCLPDB1` open, and SQL*Plus OS authentication available:
+From this repository, with a dedicated Oracle 19c test container running, `ORCLPDB1` open, and SQL\*Plus OS authentication available:
 
 ```bash
 SHOPX_SQL_TEST_CONTAINER=your-dedicated-test-container npm run test:sql
 ```
 
-Replace the placeholder with your running test instance. The earlier `pedantic_archimedes` container was removed after verification and a data audit; the runner does not provision or start containers. Do not use the recovered application database as the test instance. The [integration runner](tests/sql-bootstrap.integration.cjs) requires an explicit container, generates its own `SX_TEST_*` user, tests only that schema, and removes it even after failures. It does not read `.env`, `.local/database.json`, or application credentials. It requires Node and Docker CLI; SQL*Plus runs inside the container.
+Replace the placeholder with your running test instance. The earlier `pedantic_archimedes` container was removed after verification and a data audit; the runner does not provision or start containers. Do not use the recovered application database as the test instance. The [integration runner](tests/sql-bootstrap.integration.cjs) requires an explicit container, generates its own `SX_TEST_*` user, tests only that schema, and removes it even after failures. It does not read `.env`, `.local/database.json`, or application credentials. It requires Node and Docker CLI; SQL\*Plus runs inside the container.
 
 On October 11, 2026, **nine integration scenarios** passed (ten Node tests including the parent): seed, repeat reset with a legacy table, consistency, invalid values, valid boundaries, actual cart SQL, DDL failure, schema-only bootstrap, and seed failure/rollback. They are separate from `npm test`, which does not require Oracle/Docker.
 
-`../scripts/seed-oracle.sh` is a legacy helper for the retired Oracle XE `XEPDB1` service. Current Compose neither uses it nor defines that Oracle service. The [workspace guide](../README.md) explains the environments.
+`../scripts/seed-oracle.sh` is a legacy helper for the retired Oracle XE `XEPDB1` service. Current Compose neither uses it nor defines that Oracle service. The workspace guide (`../README.md`, integration workspace only) explains the environments.
 
 ## Commands and verification
 
-| Command, from this repository | Purpose |
-| --- | --- |
-| `npm run dev` | Hot-reloading server through `ts-node-dev` |
-| `npm run build` | Compile TypeScript into `dist/` |
-| `npm start` | Run `dist/index.js`; requires a previous build |
-| `npx tsc --noEmit` | TypeScript check without emitting a build |
-| `npm test` | 20 regression tests: sessions, authorization, startup, datasets, catalog/image validation, review visibility and managed-platform isolation |
-| `SHOPX_SQL_TEST_CONTAINER=<test-container> npm run test:sql` | Nine real Oracle scenarios in a temporary schema, separate from application data |
-| `npm run data:seed` | Read-only plan for the versioned starter pack; add `-- --apply --expect-schema YOUR_SCHEMA` to install explicitly |
-| `SHOPX_DATA_TEST_CONTAINER=<test-container> npm run test:data` | Five real Oracle scenarios for additive installation, preservation, reruns, rollback and concurrency |
-| `npm run lint` | Currently fails: ESLint 9 expects `eslint.config.*`, while this repository has `.eslintrc.json` |
-| `npm run format` | Rewrites files with Prettier; not a read-only check |
+| Command, from this repository                                  | Purpose                                                                                                                                     |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                                  | Hot-reloading server through `ts-node-dev`                                                                                                  |
+| `npm run build`                                                | Compile TypeScript into `dist/`                                                                                                             |
+| `npm start`                                                    | Run `dist/index.js`; requires a previous build                                                                                              |
+| `npx tsc --noEmit`                                             | TypeScript check without emitting a build                                                                                                   |
+| `npm test`                                                     | 24 regression tests: sessions, authorization, startup, catalog/images, platform customization, Oracle identity, SQL binding and log privacy |
+| `SHOPX_SQL_TEST_CONTAINER=<test-container> npm run test:sql`   | Nine real Oracle scenarios in a temporary schema, separate from application data                                                            |
+| `npm run data:seed`                                            | Read-only plan for the versioned starter pack; add `-- --apply --expect-schema YOUR_SCHEMA` to install explicitly                           |
+| `SHOPX_DATA_TEST_CONTAINER=<test-container> npm run test:data` | Five real Oracle scenarios for additive installation, preservation, reruns, rollback and concurrency                                        |
+| `npm run lint`                                                 | Currently fails: ESLint 9 expects `eslint.config.*`, while this repository has `.eslintrc.json`                                             |
+| `npm run format`                                               | Rewrites files with Prettier; not a read-only check                                                                                         |
 
-The 20 unit tests passed on October 12, 2026; seven additive-data/catalog Oracle scenarios passed during the earlier catalog milestone. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the [workspace verification record](../docs/development-status.md) for browser/native evidence and remaining limits.
+The current 24 unit tests and production TypeScript build passed on October 27, 2026. The earlier October 12 run had 20 tests; seven additive-data/catalog Oracle scenarios passed during the earlier catalog milestone. Lint remains blocked as described above. Unit tests use service test doubles; the separate Oracle suites exercise actual SQL in temporary schemas. Workspace `../scripts/smoke.mjs` also passed against recovered `AREVY`, covering registration, sessions, cart/wishlist/address changes, server-priced checkout, pending-payment retry, ownership and logout, then removing its QA records. `../scripts/verify-data.mjs` verified all four starter accounts through the direct API and three client proxies. See the workspace verification record (`../docs/development-status.md`, integration workspace only) for browser/native evidence and remaining limits.
 
 ## Logging and shutdown
 
-[logger.ts](src/utils/logger.ts) uses Winston with timestamped, colored console messages; the current format is not structured JSON. Request logging is configured in [server.ts](src/server.ts). `SIGINT` and `SIGTERM` close the Oracle pool and Redis connection before exit. The code does not implement HTTP request draining, so do not assume every in-flight request completes during shutdown.
+[logger.ts](src/utils/logger.ts) uses Winston to emit timestamped JSON with allowlisted operational fields and sensitive-value filtering from [logPrivacy.ts](src/utils/logPrivacy.ts). Request logging in [server.ts](src/server.ts) records route templates rather than raw URLs, and excludes request bodies and headers. `SIGINT` and `SIGTERM` close the Oracle pool and Redis connection before exit. The code does not implement HTTP request draining, so do not assume every in-flight request completes during shutdown.
 
 ## Code, documentation, and Docker
 
 - [GraphQL schema](src/graphql/schema.ts), [resolvers](src/graphql/resolvers), [services](src/services), and [configuration](src/config).
 - [GraphQL operations](docs/graphql-operations.md): examples, authorization boundaries, and manual verification guidance. Example IDs are not universal account/product identifiers.
-- [Backend backlog](docs/backend-backlog.md) and [workspace status](../docs/development-status.md): remaining work and verification limits.
+- [Backend backlog](docs/backend-backlog.md) and workspace status (`../docs/development-status.md`, integration workspace only): remaining work and verification limits.
 
 The Dockerfile uses Node 22 bookworm-slim. Compose selects `development`, waits for Oracle/Redis, then runs `yarn dev`; the `production` target compiles TypeScript and runs `node dist/index.js`. Private Compose configuration stays in `../.local/compose.env`, outside the image. Existing Oracle is attached through an external network and is not recreated by Compose. Production images were also built and exercised by the October 12 local-factory integration checks described below.
 
@@ -232,3 +236,15 @@ A managed instance sets `PLATFORM_ID=sx_<12 hex characters>`, its own `DB_USER`,
 - Provisioning accepts `seedMode: "empty"` to skip catalog/CMS installation, or `"demo"` (the backward-compatible default) to install that content pack. Both create a fresh owner without copying existing users or transactions. `SHOPX_PLATFORM_CONTENT` records the selected mode before seeding; retry cannot switch a partial or established installation to another content mode. Intentionally empty catalogs are valid running platforms.
 
 The backend repository can still be built and deployed alone. The factory consumes its production image and installer; no control-plane source is imported. Production hosting additionally requires durable Oracle storage, backups/restore verification and HTTPS. The local factory's HTTP-cookie override must not be used on public deployments.
+
+## Versioned public appearance settings
+
+Managed `/platform-config` responses may include the optional `experience` contract: HTTPS logo, plain editorial text, homepage visibility switches, a local font-family preset, corner style and catalog density. The API validates/allowlists fields and never returns configuration credentials. Omission remains compatible with earlier stores and standalone operation.
+
+The existing `provision-platform.cjs` configuration action publishes only a new configuration revision, guarded by platform/schema/PDB identity, baseline checksum and expected revision. It does not seed products or change accounts, orders, store ownership or currency. The factory worker preserves a failed publication's target for idempotent retry. The checksummed commerce baseline is unchanged.
+
+Management email/password and optional Google authentication belong to the separate control plane. They do not change this API's customer/SUPPORT session contracts.
+
+## Managed database identity
+
+When `PLATFORM_ID` is configured, startup verifies both the Oracle session user and current schema against the generated `SX_P_*` identity and rejects SYSDBA sessions or the DBA role. SQL search and pagination use bind variables. Standalone schemas retain their existing behavior; this check does not revoke or alter database grants. `npm test` includes schema-isolation and SQL-binding regression coverage. Oracle server patching is a separate operation from a Node driver or application update.
